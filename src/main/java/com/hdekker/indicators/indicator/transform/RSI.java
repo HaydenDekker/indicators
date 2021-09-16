@@ -1,6 +1,6 @@
 package com.hdekker.indicators.indicator.transform;
 
-import java.util.HashMap;
+
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiFunction;
@@ -10,10 +10,10 @@ import com.hdekker.indicators.indicator.IndicatorFnConfig;
 import com.hdekker.indicators.indicator.IndicatorTransform;
 import com.hdekker.indicators.indicator.state.impl.IndicatorAttributeState;
 
-import reactor.util.function.Tuple2;
+
 import reactor.util.function.Tuples;
 
-public interface RSI {
+public class RSI{
 	
 	public static Function<WilderRSIInstant, Function<Double, WilderRSIInstant>> wilderCalculator(Integer steps) {
 		

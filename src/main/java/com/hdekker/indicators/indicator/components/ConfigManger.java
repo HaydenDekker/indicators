@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 
 import javax.swing.plaf.ListUI;
 
-import com.hdekker.indicators.indicator.IndicatorDataConfiguration;
+import com.hdekker.indicators.indicator.IndicatorData;
 import com.hdekker.indicators.indicator.state.impl.IndicatorConfigState;
 import com.hdekker.indicators.indicator.state.impl.IndicatorStateManager;
 import com.hdekker.indicators.indicator.state.impl.MutableAttributeStateHolder;
@@ -44,7 +44,7 @@ import reactor.util.function.Tuples;
  *
  * @param <T>
  */
-public interface ConfigManger<T extends IndicatorDataConfiguration> {
+public interface ConfigManger<T extends IndicatorData> {
 	
 	Flux<Tuple2<IndicatorConfigState,
 	IndicatorStateManager>> withInputs(Tuple5<
@@ -55,7 +55,7 @@ public interface ConfigManger<T extends IndicatorDataConfiguration> {
 				Consumer<IndicatorStateManager>
 				> input);
 	
-	public static <T extends IndicatorDataConfiguration> ConfigManger<T> buildStandardConfMan(){
+	public static <T extends IndicatorData> ConfigManger<T> buildStandardConfMan(){
 		
 			return (tuple5) -> {
 				
@@ -92,7 +92,7 @@ public interface ConfigManger<T extends IndicatorDataConfiguration> {
 		
 	}
 	
-	Function<List<? extends IndicatorDataConfiguration>, Map<String, Map<String, List<String>>>>
+	Function<List<? extends IndicatorData>, Map<String, Map<String, List<String>>>>
 				inputConversionFn1 = (list)->{
 					
 					BinaryOperator<Map<String, List<String>>> merge = (prev, nxt) -> {
@@ -103,8 +103,8 @@ public interface ConfigManger<T extends IndicatorDataConfiguration> {
 						
 					};
 					
-					Function<IndicatorDataConfiguration, String> keyMap = (in) -> in.getAssetPrimaryKey();
-					Function<IndicatorDataConfiguration, Map<String, List<String>>> valMap = (in) -> Map.of(in.getAssetSecondaryKey(), in.getIndicatorId());
+					Function<IndicatorData, String> keyMap = (in) -> in.getAssetPrimaryKey();
+					Function<IndicatorData, Map<String, List<String>>> valMap = (in) -> Map.of(in.getAssetSecondaryKey(), in.getIndicatorId());
 					Map<String, Map<String, List<String>>> conv = list.stream()
 						.collect(Collectors.toMap(keyMap, 
 										valMap, merge));

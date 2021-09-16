@@ -3,7 +3,7 @@ package com.hdekker.indicators.indicator;
 import java.time.Duration;
 import java.util.List;
 
-public class TestConfiguration implements IndicatorDataConfiguration {
+public class TestConfiguration implements IndicatorData {
 
 	final String primaryKey;
 	final String secondaryKey;

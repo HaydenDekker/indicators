@@ -26,7 +26,7 @@ import reactor.util.function.Tuples;
  * @author HDekker
  *
  */
-public interface IndicatorComponent {
+public class IndicatorComponent {
 
 	/**
 	 * A state object that can hold 
@@ -68,7 +68,7 @@ public interface IndicatorComponent {
 		Function<String, Optional< Map<String, Indicator>>>> pkMap = (stateManager) -> (s)-> Optional.ofNullable(stateManager.getState().get(s));
 	
 		
-	class MutableStateHolder<T>{
+	static class MutableStateHolder<T>{
 		
 		T state;
 		
@@ -81,12 +81,12 @@ public interface IndicatorComponent {
 		
 	}
 	
-	public interface IndicatorComponentBuilder<T extends IndicatorDataConfiguration, K extends IndicatorSampleData> extends 
+	public interface IndicatorComponentBuilder<T extends IndicatorData, K extends IndicatorSampleData> extends 
 	Function<Tuple2<Flux<List<T>>, Flux<K>>, 
 	Tuple2<Flux<Tuple2<IndicatorConfigState, IndicatorStateManager>>, Flux<List<Tuple3<IndicatorEvent, K, IndicatorDetails>>>>> {}
 	
 	
-	public static <T extends IndicatorDataConfiguration, K extends IndicatorSampleData> 
+	public static <T extends IndicatorData, K extends IndicatorSampleData> 
 	IndicatorComponentBuilder<T,K> instanceWithNewState(){
 		
 		return instance(Tuples.of(getIndicatorConfigManagerInstance(), getIndicatorStateInstance()));
@@ -99,7 +99,7 @@ public interface IndicatorComponent {
 	 * @param <K>
 	 * @return
 	 */
-	public static <T extends IndicatorDataConfiguration, K extends IndicatorSampleData> 
+	public static <T extends IndicatorData, K extends IndicatorSampleData> 
 		IndicatorComponentBuilder<T,K> instance(
 								Tuple2<IndicatorConfigState, IndicatorStateManager> initialState){
 		

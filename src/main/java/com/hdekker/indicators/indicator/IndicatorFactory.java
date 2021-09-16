@@ -18,30 +18,38 @@ public interface IndicatorFactory {
 
 	public static final String RSI_14_THRESH_BELOW30 = "RSI-14-ThreshBelow30";
 	
-	Map<String, Indicator> configuredIndicators = Map.of(
-							RSI_14_THRESH_BELOW30, AppliedIndicators.rsi14MovesBelow30());
+	Map<String, IndicatorConfiguration> configuredIndicators = 
+		Map.of(
+			RSI_14_THRESH_BELOW30, 
+			new IndicatorConfiguration(
+					new IndicatorDiscriptor(RSI_14_THRESH_BELOW30, Map.of(
+							"rsi-steps", 14.00,
+							"alert-below-threshold", 30.00
+							)), 
+					AppliedIndicators.rsi14MovesBelow30())
+		);
 	
 	public static Indicator getIndicator(String name) {
-		return configuredIndicators.get(name);
+		return configuredIndicators.get(name).getIndicator();
 	}
 	
 	public static Set<String> getIndicatorNames(){
 		return configuredIndicators.keySet();
 	}
 	
-	public static interface AppliedIndicators{
+	static interface AppliedIndicators {
 		
-		public static Indicator rsi14MovesBelow30() {
+		private static Indicator rsi14MovesBelow30() {
 			
 			IndicatorAttributeState conf = new IndicatorAttributeState(Map.of(
-					"rsi-fn-1-steps", 14.00,
-					"thresh-alt-threshold", 30.00
+					"rsi-steps", 14.00,
+					"alert-below-threshold", 30.00
 					));
 			
-			IndicatorTransform rsiT = RSI.getTransform().withConfig(new IndicatorFnConfigSpec("rsi-fn-1", conf));
+			IndicatorTransform rsiT = RSI.getTransform().withConfig(new IndicatorFnConfigSpec("rsi", conf));
 			
 			IndicatorAlert ia = Threshold.movesBelowThresholdAlert()
-					.withConfig(new IndicatorFnConfigSpec("thresh-alt", conf));
+					.withConfig(new IndicatorFnConfigSpec("alert-below", conf));
 
 		    Indicator ind = (input) ->    rsiT
 		    								.andThen(ia)
