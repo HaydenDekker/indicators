@@ -17,10 +17,10 @@ import java.util.stream.Collectors;
 
 import javax.swing.plaf.ListUI;
 
-import com.hdekker.indicators.indicator.IndicatorConfigurationData;
+import com.hdekker.indicators.indicator.IndicatorDataConfiguration;
 import com.hdekker.indicators.indicator.state.impl.IndicatorConfigState;
-import com.hdekker.indicators.indicator.state.impl.IndicatorInternalStateManager;
-import com.hdekker.indicators.indicator.state.impl.MutableInternalStateHolder;
+import com.hdekker.indicators.indicator.state.impl.IndicatorStateManager;
+import com.hdekker.indicators.indicator.state.impl.MutableAttributeStateHolder;
 
 import reactor.core.publisher.Flux;
 import reactor.util.function.Tuple2;
@@ -44,18 +44,18 @@ import reactor.util.function.Tuples;
  *
  * @param <T>
  */
-public interface ConfigManger<T extends IndicatorConfigurationData> {
+public interface ConfigManger<T extends IndicatorDataConfiguration> {
 	
 	Flux<Tuple2<IndicatorConfigState,
-	IndicatorInternalStateManager>> withInputs(Tuple5<
+	IndicatorStateManager>> withInputs(Tuple5<
 				Flux<List<T>>, 
 				Supplier<IndicatorConfigState>,
 				Consumer<IndicatorConfigState>,
-				Supplier<IndicatorInternalStateManager>,
-				Consumer<IndicatorInternalStateManager>
+				Supplier<IndicatorStateManager>,
+				Consumer<IndicatorStateManager>
 				> input);
 	
-	public static <T extends IndicatorConfigurationData> ConfigManger<T> buildStandardConfMan(){
+	public static <T extends IndicatorDataConfiguration> ConfigManger<T> buildStandardConfMan(){
 		
 			return (tuple5) -> {
 				
@@ -65,19 +65,19 @@ public interface ConfigManger<T extends IndicatorConfigurationData> {
 					List<Tuple3<String, String, String>> newItems = flattenState.apply(items);
 					List<Tuple3<String, String, String>> existingItems = findExistingConfig.apply(items, tuple5.getT2().get().getState());
 					
-					Map<String, Tuple2<MutableInternalStateHolder, Integer>> newMap = IndicatorInternalStateManager.getInternalStateMap
-							.apply(IndicatorInternalStateManager.withNewInternalState)
+					Map<String, Tuple2<MutableAttributeStateHolder, Integer>> newMap = IndicatorStateManager.getInternalStateMap
+							.apply(IndicatorStateManager.withNewInternalState)
 							.apply(newItems);
 					
-					Map<String, Tuple2<MutableInternalStateHolder, Integer>> existingMap = IndicatorInternalStateManager.getInternalStateMap
-							.apply(IndicatorInternalStateManager.withExistingInternalState.apply(tuple5.getT4().get().getState()))
+					Map<String, Tuple2<MutableAttributeStateHolder, Integer>> existingMap = IndicatorStateManager.getInternalStateMap
+							.apply(IndicatorStateManager.withExistingInternalState.apply(tuple5.getT4().get().getState()))
 							.apply(existingItems);
 					
-					Map<String, Tuple2<MutableInternalStateHolder, Integer>> combined = new HashMap<>();
+					Map<String, Tuple2<MutableAttributeStateHolder, Integer>> combined = new HashMap<>();
 					combined.putAll(newMap);
 					combined.putAll(existingMap);
 					
-					IndicatorInternalStateManager iism = new IndicatorInternalStateManager(combined);
+					IndicatorStateManager iism = new IndicatorStateManager(combined);
 					IndicatorConfigState ics = new IndicatorConfigState(items);
 					
 					// update global state
@@ -92,7 +92,7 @@ public interface ConfigManger<T extends IndicatorConfigurationData> {
 		
 	}
 	
-	Function<List<? extends IndicatorConfigurationData>, Map<String, Map<String, List<String>>>>
+	Function<List<? extends IndicatorDataConfiguration>, Map<String, Map<String, List<String>>>>
 				inputConversionFn1 = (list)->{
 					
 					BinaryOperator<Map<String, List<String>>> merge = (prev, nxt) -> {
@@ -103,8 +103,8 @@ public interface ConfigManger<T extends IndicatorConfigurationData> {
 						
 					};
 					
-					Function<IndicatorConfigurationData, String> keyMap = (in) -> in.getAssetPrimaryKey();
-					Function<IndicatorConfigurationData, Map<String, List<String>>> valMap = (in) -> Map.of(in.getAssetSecondaryKey(), in.getIndicatorId());
+					Function<IndicatorDataConfiguration, String> keyMap = (in) -> in.getAssetPrimaryKey();
+					Function<IndicatorDataConfiguration, Map<String, List<String>>> valMap = (in) -> Map.of(in.getAssetSecondaryKey(), in.getIndicatorId());
 					Map<String, Map<String, List<String>>> conv = list.stream()
 						.collect(Collectors.toMap(keyMap, 
 										valMap, merge));

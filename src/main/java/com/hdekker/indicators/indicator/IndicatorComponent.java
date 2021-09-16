@@ -9,9 +9,9 @@ import com.hdekker.indicators.indicator.alert.IndicatorEvent;
 import com.hdekker.indicators.indicator.components.ConfigManger;
 import com.hdekker.indicators.indicator.components.SampleSubscriber;
 import com.hdekker.indicators.indicator.components.SampleSubscriber.IndicatorDetails;
-import com.hdekker.indicators.indicator.state.IndicatorStateManager;
+import com.hdekker.indicators.indicator.state.State;
 import com.hdekker.indicators.indicator.state.impl.IndicatorConfigState;
-import com.hdekker.indicators.indicator.state.impl.IndicatorInternalStateManager;
+import com.hdekker.indicators.indicator.state.impl.IndicatorStateManager;
 
 import reactor.core.publisher.Flux;
 import reactor.util.function.Tuple2;
@@ -55,8 +55,8 @@ public interface IndicatorComponent {
 	 * multiple assets
 	 * 
 	 */
-	public static IndicatorInternalStateManager getIndicatorStateInstance(){
-		return new IndicatorInternalStateManager(Map.of()); 
+	public static IndicatorStateManager getIndicatorStateInstance(){
+		return new IndicatorStateManager(Map.of()); 
 	}
 	
 	/***
@@ -64,7 +64,7 @@ public interface IndicatorComponent {
 	 *  For primary key, return mapping wrapped in optional.
 	 * 
 	 */
-	static Function<IndicatorStateManager<Map<String, Map<String, Indicator>>>,
+	static Function<State<Map<String, Map<String, Indicator>>>,
 		Function<String, Optional< Map<String, Indicator>>>> pkMap = (stateManager) -> (s)-> Optional.ofNullable(stateManager.getState().get(s));
 	
 		
@@ -81,12 +81,12 @@ public interface IndicatorComponent {
 		
 	}
 	
-	public interface IndicatorComponentBuilder<T extends IndicatorConfigurationData, K extends IndicatorSampleData> extends 
+	public interface IndicatorComponentBuilder<T extends IndicatorDataConfiguration, K extends IndicatorSampleData> extends 
 	Function<Tuple2<Flux<List<T>>, Flux<K>>, 
-	Tuple2<Flux<Tuple2<IndicatorConfigState, IndicatorInternalStateManager>>, Flux<List<Tuple3<IndicatorEvent, K, IndicatorDetails>>>>> {}
+	Tuple2<Flux<Tuple2<IndicatorConfigState, IndicatorStateManager>>, Flux<List<Tuple3<IndicatorEvent, K, IndicatorDetails>>>>> {}
 	
 	
-	public static <T extends IndicatorConfigurationData, K extends IndicatorSampleData> 
+	public static <T extends IndicatorDataConfiguration, K extends IndicatorSampleData> 
 	IndicatorComponentBuilder<T,K> instanceWithNewState(){
 		
 		return instance(Tuples.of(getIndicatorConfigManagerInstance(), getIndicatorStateInstance()));
@@ -99,19 +99,19 @@ public interface IndicatorComponent {
 	 * @param <K>
 	 * @return
 	 */
-	public static <T extends IndicatorConfigurationData, K extends IndicatorSampleData> 
+	public static <T extends IndicatorDataConfiguration, K extends IndicatorSampleData> 
 		IndicatorComponentBuilder<T,K> instance(
-								Tuple2<IndicatorConfigState, IndicatorInternalStateManager> initialState){
+								Tuple2<IndicatorConfigState, IndicatorStateManager> initialState){
 		
 		MutableStateHolder<IndicatorConfigState> confState = new MutableStateHolder<IndicatorConfigState>();
 		confState.setState(initialState.getT1());
-		MutableStateHolder<IndicatorInternalStateManager> intState = new MutableStateHolder<IndicatorInternalStateManager>();
+		MutableStateHolder<IndicatorStateManager> intState = new MutableStateHolder<IndicatorStateManager>();
 		intState.setState(initialState.getT2());
 		
 		return (tuplConNSamples)->{
 			
 			ConfigManger<T> confMan = ConfigManger.buildStandardConfMan();
-			Flux<Tuple2<IndicatorConfigState, IndicatorInternalStateManager>> outConf = confMan.withInputs(Tuples.of(tuplConNSamples.getT1(), confState::getState, confState::setState, intState::getState, intState::setState));
+			Flux<Tuple2<IndicatorConfigState, IndicatorStateManager>> outConf = confMan.withInputs(Tuples.of(tuplConNSamples.getT1(), confState::getState, confState::setState, intState::getState, intState::setState));
 			
 			SampleSubscriber<K> samp = SampleSubscriber.builder();
 			Flux<List<Tuple3<IndicatorEvent, K, IndicatorDetails>>> outSamp = samp.withInputs(Tuples.of(tuplConNSamples.getT2(), 

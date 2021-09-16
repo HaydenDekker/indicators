@@ -8,15 +8,16 @@ package com.hdekker.indicators.indicator.state;
  * 
  * Can insert DB update later on.
  * 
+ * 
  * @author HDekker
  *
  * @param <T>
  */
-public class IndicatorStateManager<T> {
+public class State<T> {
 
 	T state;
 	
-	public IndicatorStateManager(T state){
+	public State(T state){
 		this.state = state;
 	}
 	

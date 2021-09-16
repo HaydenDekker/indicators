@@ -1,12 +1,13 @@
 package com.hdekker.indicators.indicator;
 
-import static com.hdekker.indicators.indicator.IndicatoryFactory.AppliedIndicators.*;
+import static com.hdekker.indicators.indicator.IndicatorFactory.AppliedIndicators.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -17,9 +18,11 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.hdekker.indicators.indicator.Indicator.IndicatorTestSpec;
+import com.hdekker.indicators.indicator.IndicatorFnConfig.IndicatorFnConfigSpec;
 import com.hdekker.indicators.indicator.alert.IndicatorEvent;
 import com.hdekker.indicators.indicator.alert.Threshold;
-import com.hdekker.indicators.indicator.state.impl.IndicatorInternalState;
+import com.hdekker.indicators.indicator.state.impl.IndicatorAttributeState;
 import com.hdekker.indicators.indicator.transform.RSI;
 
 import reactor.util.function.Tuple2;
@@ -35,7 +38,7 @@ public class IndicatorFactoryTest {
 	@Test
 	public void canGetStaticConfiguredIndicators() {
 		
-		Indicator rsi14movesBelow30 = IndicatoryFactory.getIndicator("RSI-14-ThreshBelow30");
+		Indicator rsi14movesBelow30 = IndicatorFactory.getIndicator("RSI-14-ThreshBelow30");
 		assertThat(rsi14movesBelow30, Matchers.notNullValue());
 	}
 
@@ -62,33 +65,33 @@ public class IndicatorFactoryTest {
 	}
 	
 	@Test
-	public void canChainRSITransformToThresholdAlertToCreateIndicator() throws JsonProcessingException {
+	public void uCanChainRSITransformToThresholdAlertToCreateIndicator() throws JsonProcessingException {
 		
-		IndicatorInternalState conf = IndicatorInternalState.builder("rsi-fn-1")
-				.put("steps", 14.00)
-				.build()
-				.bindTo("thresh-alt")
-				.builder()
-				.put("threshold", 30.00)
-				.build()
-				.bindTo("rsi-fn-1");
-		
-		// Kinda annoying but getting better.
+		IndicatorAttributeState conf = new IndicatorAttributeState(Map.of(
+					"rsi-fn-1-steps", 14.00,
+					"thresh-alt-threshold", 30.00 
+				));
 		
 		assertThat(conf.getState(), hasKey("thresh-alt-threshold"));
 		assertThat(conf.getState(), hasKey("rsi-fn-1-steps"));
 		
-		IndicatorTransform rsiT = RSI.getTransform().withConfig(conf);
+		IndicatorTransform rsiT = RSI.getTransform().withConfig(new IndicatorFnConfigSpec("rsi-fn-1", conf));
 		
 		IndicatorAlert ia = Threshold.movesBelowThresholdAlert()
-				.withConfig(conf.bindTo("thresh-alt"));
+				.withConfig(new IndicatorFnConfigSpec("thresh-alt", conf));
 
-	    Indicator ind = (input) -> convertInput
-	    								.andThen(bindTo.apply("rsi-fn-1"))
-	    								.andThen(rsiT)
-	    								.andThen(bindTo.apply("thresh-alt"))
-	    								.andThen(ia)
-	    								.apply(input);
+	    Indicator ind = (input) -> rsiT
+	    							.andThen(t-> {
+	    								assertThat(t.getT2().getState().get("rsi-fn-1-" + RSI.aveGain), notNullValue());
+	    								return t;
+	    							})
+	    							.andThen(ia)
+	    							.andThen(t -> {
+	    								assertThat(t.getT2().getState().get("rsi-fn-1-" + RSI.aveGain), notNullValue());
+	    		    					assertThat(t.getT2().getState().get("thresh-alt-" + Threshold.PREV_STATE), notNullValue());
+	    								return t;
+	    							})
+	    							.apply(Tuples.of(input.getValue(),input.getIndicatorAttributeState()));
 	    
 	    BTCData data = null;
 	    //List<Double> mockInputs = Arrays.asList();//  = Arrays.asList(42705.48,32706.48,22705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48);//42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,57259.22, 57259.22, 57259.22, 57259.22, 57259.22, 59002.18, 58217.85, 56039.14, 56823.48, 49503.03, 49851.63, 46888.59,46627.15, 43402.67,42705.48,37215.15, 42705.48,37215.15, 42705.48,37215.15, 42705.48,37215.15, 42705.48,37215.15, 42705.48,37215.15); // 2400.5, 2350.0, 2335.0, 2120.0, 1910.0, 1420.0, 1220.0, 1110.0, 935.0, 843.0, 742.0, 621.0, 542.0, 431.0, 300.0, 200.0,2.0,1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0,1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0,1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0,1.0,1.0, 1.0,1.0, 1.0,2.0 );
@@ -111,13 +114,15 @@ public class IndicatorFactoryTest {
 	    
 	    // push all data through the indicator
 	    mockInputs.stream()
-	    				.map(d-> Tuples.of(0, d, IndicatorInternalState.builder("any").build()))
+	    				.map(d-> Tuples.of(0, d, new IndicatorAttributeState(Map.of())))
 	    				.reduce((p, n) -> {
 	    					
 	    					// a bit silly hmmm
-	    					Tuple2<Optional<IndicatorEvent>, IndicatorInternalState> alrt = ind.test(Tuples.of(0, n.getT2(),p.getT3()));
+	    					Tuple2<Optional<IndicatorEvent>, IndicatorAttributeState> alrt = ind.test(new IndicatorTestSpec(0, n.getT2(),p.getT3()));
 	    					indicatorEvents.add(alrt.getT1());
 	    					ObjectMapper om = new ObjectMapper();
+	    					assertThat(alrt.getT2().getState().get("rsi-fn-1-" + RSI.aveGain), notNullValue());
+	    					assertThat(alrt.getT2().getState().get("thresh-alt-" + Threshold.PREV_STATE), notNullValue());
 	    					try {
 								LoggerFactory.getLogger(IndicatorFactoryTest.class).info(om.writeValueAsString(alrt.getT2().getState()));
 							} catch (JsonProcessingException e) {

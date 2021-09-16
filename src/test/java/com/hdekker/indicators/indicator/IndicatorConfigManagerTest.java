@@ -9,8 +9,8 @@ import org.junit.jupiter.api.Test;
 
 import com.hdekker.indicators.indicator.components.ConfigManger;
 import com.hdekker.indicators.indicator.state.impl.IndicatorConfigState;
-import com.hdekker.indicators.indicator.state.impl.IndicatorInternalStateManager;
-import com.hdekker.indicators.indicator.state.impl.MutableInternalStateHolder;
+import com.hdekker.indicators.indicator.state.impl.IndicatorStateManager;
+import com.hdekker.indicators.indicator.state.impl.MutableAttributeStateHolder;
 
 import reactor.core.publisher.Flux;
 import reactor.util.function.Tuple2;
@@ -40,7 +40,7 @@ import static org.hamcrest.Matchers.*;
 public class IndicatorConfigManagerTest {
 	
 	IndicatorConfigState icsComponentReference;
-	IndicatorInternalStateManager iismComponentRef;
+	IndicatorStateManager iismComponentRef;
 	
 	@Test
 	public void itConfigManagerProducesIndicatorConfigurationMapForASignleConfigUpdate() {
@@ -53,8 +53,8 @@ public class IndicatorConfigManagerTest {
 		
 		Flux<List<TestConfiguration>> testConfig = IndicatorTestDataUtil.confFluxSingleUpdate();
 		
-		Flux<Tuple2<IndicatorConfigState, IndicatorInternalStateManager>> output = fn.withInputs(Tuples.of(testConfig, ()-> icsComponentReference, (cf) -> {icsComponentReference = cf;}, ()-> iismComponentRef, (is)->{ iismComponentRef = is;}));
-		List<Tuple2<IndicatorConfigState, IndicatorInternalStateManager>> result = output.collect(Collectors.toList()).block();
+		Flux<Tuple2<IndicatorConfigState, IndicatorStateManager>> output = fn.withInputs(Tuples.of(testConfig, ()-> icsComponentReference, (cf) -> {icsComponentReference = cf;}, ()-> iismComponentRef, (is)->{ iismComponentRef = is;}));
+		List<Tuple2<IndicatorConfigState, IndicatorStateManager>> result = output.collect(Collectors.toList()).block();
 		
 		assertThat(result, hasSize(1)); // success result should output exactly one for this test.
 		assertThat(iismComponentRef.getState().get("asset-1" + "-" + "PT1S" + "-" + "RSI-14-ThreshBelow30"), notNullValue());
@@ -131,10 +131,10 @@ public class IndicatorConfigManagerTest {
 															.andThen(ConfigManger.flattenState)
 															.apply(initial);
 		
-		Map<String, Tuple2<MutableInternalStateHolder, Integer>> map = IndicatorInternalStateManager.getInternalStateMap.apply(IndicatorInternalStateManager.withNewInternalState)
+		Map<String, Tuple2<MutableAttributeStateHolder, Integer>> map = IndicatorStateManager.getInternalStateMap.apply(IndicatorStateManager.withNewInternalState)
 																					.apply(newItems);
 		
-		IndicatorInternalStateManager manager = new IndicatorInternalStateManager(map);
+		IndicatorStateManager manager = new IndicatorStateManager(map);
 		
 		assertThat(manager.getState().get("asset-1" + "-" + "PT1S" + "-" + "RSI-14-ThreshBelow30"), notNullValue());
 		

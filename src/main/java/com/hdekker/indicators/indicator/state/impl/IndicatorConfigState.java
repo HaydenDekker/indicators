@@ -4,9 +4,9 @@ import java.util.List;
 import java.util.Map;
 
 import com.hdekker.indicators.indicator.Indicator;
-import com.hdekker.indicators.indicator.state.IndicatorStateManager;
+import com.hdekker.indicators.indicator.state.State;
 
-public class IndicatorConfigState extends IndicatorStateManager<Map<String, Map<String, List<String>>>>{
+public class IndicatorConfigState extends State<Map<String, Map<String, List<String>>>>{
 
 	public IndicatorConfigState(){
 		super(Map.of());

@@ -3,7 +3,7 @@ package com.hdekker.indicators.indicator;
 import java.util.Map;
 import java.util.function.Function;
 
-import com.hdekker.indicators.indicator.state.impl.IndicatorInternalState;
+import com.hdekker.indicators.indicator.state.impl.IndicatorAttributeState;
 
 import reactor.util.function.Tuple2;
 
@@ -15,6 +15,6 @@ import reactor.util.function.Tuple2;
  *
  */
 public interface IndicatorTransform extends
-			Function<Tuple2<Double, IndicatorInternalState>, Tuple2<Double, IndicatorInternalState>>{
+			Function<Tuple2<Double, IndicatorAttributeState>, Tuple2<Double, IndicatorAttributeState>>{
 
 }

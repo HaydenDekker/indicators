@@ -8,7 +8,7 @@ import java.util.function.Function;
 
 import com.hdekker.indicators.indicator.IndicatorFnConfig;
 import com.hdekker.indicators.indicator.IndicatorTransform;
-import com.hdekker.indicators.indicator.state.impl.IndicatorInternalState;
+import com.hdekker.indicators.indicator.state.impl.IndicatorAttributeState;
 
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
@@ -70,16 +70,17 @@ public interface RSI {
 		
 		return (conf)-> {
 		
-		    Double steps = (Double) Optional.of(conf.stateReader().apply("steps")).get();
+			String id = conf.getIndicatorFnId();
+		    Double steps = (Double) Optional.of(conf.getConfig().stateReader(id).apply("steps")).get();
 			Function<WilderRSIInstant, Function<Double, WilderRSIInstant>> wc = wilderCalculator(steps.intValue());
 		
 			return (input) -> {
 			
 				// may not have previous state so check values
-				Double aveGainD = valueOrZero().apply(input.getT2().stateReader().apply(aveGain));						
-				Double aveLossD = valueOrZero().apply(input.getT2().stateReader().apply(aveLoss));
-				Double rsiD = valueOrZero().apply(input.getT2().stateReader().apply(rsi));
-				Double valueD = valueOrZero().apply(input.getT2().stateReader().apply(value));
+				Double aveGainD = valueOrZero().apply(input.getT2().stateReader(id).apply(aveGain));						
+				Double aveLossD = valueOrZero().apply(input.getT2().stateReader(id).apply(aveLoss));
+				Double rsiD = valueOrZero().apply(input.getT2().stateReader(id).apply(rsi));
+				Double valueD = valueOrZero().apply(input.getT2().stateReader(id).apply(value));
 				
 				WilderRSIInstant wri = new WilderRSIInstant();
 				wri.setAvGain(aveGainD);
@@ -90,12 +91,12 @@ public interface RSI {
 				WilderRSIInstant out = wc
 						.apply(wri).apply(input.getT1());
 				
-				IndicatorInternalState newState = input.getT2().builder()
-					.put(aveGain, out.getAvGain())
-					.put(aveLoss, out.getAvLoss())
-					.put(rsi, out.getRsi())
-					.put(value, out.getValue())
-					.build();
+				IndicatorAttributeState newState = input.getT2().copyAndPutAll(Map.of(
+						 id + '-' + aveGain, out.getAvGain(),
+						 id + '-' + aveLoss, out.getAvLoss(),
+						 id + '-' + rsi, out.getRsi(),
+						 id + '-' + value, out.getValue()
+						));
 				
 				return Tuples.of(out.getRsi(), newState);
 			};

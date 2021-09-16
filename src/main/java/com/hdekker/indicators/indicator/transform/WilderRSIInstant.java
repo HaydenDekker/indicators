@@ -1,6 +1,5 @@
 package com.hdekker.indicators.indicator.transform;
 
-import java.time.LocalDateTime;
 
 public class WilderRSIInstant {
 

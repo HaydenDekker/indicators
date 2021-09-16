@@ -3,6 +3,8 @@ package com.hdekker.indicators.indicator;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -13,18 +15,20 @@ import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
+import com.hdekker.indicators.indicator.Indicator.IndicatorTestSpec;
 import com.hdekker.indicators.indicator.alert.IndicatorEvent;
 import com.hdekker.indicators.indicator.components.ConfigManger;
 import com.hdekker.indicators.indicator.components.SampleSubscriber;
 import com.hdekker.indicators.indicator.components.SampleSubscriber.IndicatorDetails;
 import com.hdekker.indicators.indicator.state.impl.ConfigStateReader;
 import com.hdekker.indicators.indicator.state.impl.IndicatorConfigState;
-import com.hdekker.indicators.indicator.state.impl.IndicatorInternalState;
-import com.hdekker.indicators.indicator.state.impl.IndicatorInternalStateManager;
+import com.hdekker.indicators.indicator.state.impl.IndicatorAttributeState;
+import com.hdekker.indicators.indicator.state.impl.IndicatorStateManager;
 import com.hdekker.indicators.indicator.state.impl.InternalStateReader;
-import com.hdekker.indicators.indicator.state.impl.MutableInternalStateHolder;
+import com.hdekker.indicators.indicator.state.impl.MutableAttributeStateHolder;
 
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuple3;
 import reactor.util.function.Tuples;
@@ -50,26 +54,29 @@ public class IndicatorSampleSubscriberTest {
 	@Test
 	public void itWithDataTypeWhereNoConfigCanBeFoundForSK() {
 		
-		Flux<TestDataInputType> inputFlux = IndicatorTestDataUtil.dataFluxDualInputUniqueSKs();
-		
+		Flux<TestDataInputType> inputFlux = Flux.create(confSink->{
+			
+			TestDataInputType one = new TestDataInputType("asset-1", Duration.ofSeconds(1), LocalDateTime.now(), 4142.990459018316);
+			TestDataInputType two = new TestDataInputType("asset-1", Duration.ofHours(1), LocalDateTime.now(), 4142.990459018316); // false second
+			
+			Mono.delay(Duration.ofSeconds(2)).subscribe(l-> confSink.next(two));
+			Mono.delay(Duration.ofSeconds(3)).subscribe(l-> confSink.next(one));
+			Mono.delay(Duration.ofSeconds(4)).subscribe(l-> confSink.complete());
+			
+			});
 		IndicatorConfigState configState = new IndicatorConfigState(Map.of("asset-1", Map.of("PT1S", List.of("RSI-14-ThreshBelow30"))));
-		// need to initialse mock data
+		// need to initialse data
 		
-		MutableInternalStateHolder h = new MutableInternalStateHolder();
-		h.setState(IndicatorInternalState.builder("rsi-fn-1")
-				.put("rsi-value", 7935.522040170545)
-				.put("rsi-ave-loss", 132.82257418166498)
-				.put("rsi-rsi",35.19557443409366)
-				.put("rsi-ave-gain",72.13653628307311)
-				.build()
-				.bindTo("thresh-alt")
-				.builder()
-				.put("prev-state",35.19557443409366)
-				.build());
-		Tuple2<MutableInternalStateHolder, Integer> state = Tuples.of(h, 0);
-		IndicatorInternalStateManager indicatorStateMan = new IndicatorInternalStateManager(Map.of("asset-1" + "-" + "PT1S" + "-" + "RSI-14-ThreshBelow30", state));
-		
-		// need to initialse mock data
+		MutableAttributeStateHolder h = new MutableAttributeStateHolder();
+		h.setState(new IndicatorAttributeState(Map.of(
+				"rsi-fn-1-rsi-value", 7935.522040170545,
+				"rsi-fn-1-rsi-ave-loss", 132.82257418166498,
+				"rsi-fn-1-rsi-rsi",35.19557443409366,
+				"rsi-fn-1-rsi-ave-gain",72.13653628307311,
+				"thresh-alt-prev-state",35.19557443409366
+				)));
+		Tuple2<MutableAttributeStateHolder, Integer> state = Tuples.of(h, 0);
+		IndicatorStateManager indicatorStateMan = new IndicatorStateManager(Map.of("asset-1" + "-" + "PT1S" + "-" + "RSI-14-ThreshBelow30", state));
 		
 		ConfigStateReader r = (primaryKey) -> Optional.ofNullable(configState.getState().get(primaryKey));
 		InternalStateReader isr = (s) -> indicatorStateMan.getState().get(s);
@@ -91,19 +98,16 @@ public class IndicatorSampleSubscriberTest {
 		IndicatorConfigState configState = new IndicatorConfigState(Map.of("asset-1", Map.of("PT1S", List.of("RSI-14-ThreshBelow30"))));
 		// need to initialse mock data
 		
-		MutableInternalStateHolder h = new MutableInternalStateHolder();
-		h.setState(IndicatorInternalState.builder("rsi-fn-1")
-				.put("rsi-value", 7935.522040170545)
-				.put("rsi-ave-loss", 132.82257418166498)
-				.put("rsi-rsi",35.19557443409366)
-				.put("rsi-ave-gain",72.13653628307311)
-				.build()
-				.bindTo("thresh-alt")
-				.builder()
-				.put("prev-state",35.19557443409366)
-				.build());
-		Tuple2<MutableInternalStateHolder, Integer> state = Tuples.of(h, 0);
-		IndicatorInternalStateManager indicatorStateMan = new IndicatorInternalStateManager(Map.of("asset-1" + "-" + "PT1S" + "-" + "RSI-14-ThreshBelow30", state));
+		MutableAttributeStateHolder h = new MutableAttributeStateHolder();
+		h.setState(new IndicatorAttributeState(Map.of(
+				"rsi-fn-1-rsi-value", 7935.522040170545,
+				"rsi-fn-1-rsi-ave-loss", 132.82257418166498,
+				"rsi-fn-1-rsi-rsi",35.19557443409366,
+				"rsi-fn-1-rsi-ave-gain",72.13653628307311,
+				"thresh-alt-prev-state",35.19557443409366
+				)));
+		Tuple2<MutableAttributeStateHolder, Integer> state = Tuples.of(h, 0);
+		IndicatorStateManager indicatorStateMan = new IndicatorStateManager(Map.of("asset-1" + "-" + "PT1S" + "-" + "RSI-14-ThreshBelow30", state));
 		
 		// need to initialse mock data
 		
@@ -115,7 +119,6 @@ public class IndicatorSampleSubscriberTest {
 		// only expect event if present so needs at least two inputs
 		List<List<Tuple3<IndicatorEvent, TestDataInputType, IndicatorDetails>>> output = fluxOut.collect(Collectors.toList()).block();
 		assertThat(output, hasSize(1));
-		
 		
 	}
 	
@@ -172,50 +175,39 @@ public class IndicatorSampleSubscriberTest {
 		assertThat(keys.get(0).getStateKey(), equalTo("asset-1-PT1S-RSI-14-ThreshBelow30"));
 		
 		// Mocks input state
-		MutableInternalStateHolder h = new MutableInternalStateHolder();
-		h.setState(IndicatorInternalState.builder("").put("test", "isCorrect").build());
-		Map<String, Tuple2<MutableInternalStateHolder, Integer>> state = Map.of("asset-1" + "-" + "PT1S" + "-" + "RSI-14-ThreshBelow30", Tuples.of(h, 0));
-		IndicatorInternalStateManager iism = new IndicatorInternalStateManager(state);
+		MutableAttributeStateHolder h = new MutableAttributeStateHolder();
+		h.setState(new IndicatorAttributeState(Map.of("test", 0.01)));
+		Map<String, Tuple2<MutableAttributeStateHolder, Integer>> state = Map.of("asset-1" + "-" + "PT1S" + "-" + "RSI-14-ThreshBelow30", Tuples.of(h, 0));
+		IndicatorStateManager iism = new IndicatorStateManager(state);
 		
 		// comp interface
 		InternalStateReader reader = (s) -> iism.getState().get(s);
 		
 		// what subscriber sees
-		Map<String, Object> internalIndState = reader.apply(keys.get(0).getStateKey()).getT1().getState().getState();
-		assertThat(internalIndState.get("-test"), equalTo("isCorrect"));
+		Map<String, Double> internalIndState = reader.apply(keys.get(0).getStateKey()).getT1().getState().getState();
+		assertThat(internalIndState.get("test"), equalTo(0.01));
 		
 	}
 	@Test 
 	public void mapsSampleToIndicatorAlertsForAListOfIndicators() {
 		
 		List<TestDataInputType> testData = IndicatorTestDataUtil.getTestData();	
-		Indicator i = IndicatoryFactory.getIndicator("RSI-14-ThreshBelow30");
+		Indicator i = IndicatorFactory.getIndicator("RSI-14-ThreshBelow30");
 		
 		// Mocks input state reader
-		MutableInternalStateHolder h = new MutableInternalStateHolder();
-		h.setState(IndicatorInternalState.builder("").build());
-		Map<String, Tuple2<MutableInternalStateHolder, Integer>> state = Map.of("asset-1" + "-" + "PT1S" + "-" + "RSI-14-ThreshBelow30", Tuples.of(h, 0));
-		IndicatorInternalStateManager iism = new IndicatorInternalStateManager(state);
+		MutableAttributeStateHolder h = new MutableAttributeStateHolder();
+		h.setState(new IndicatorAttributeState());
+		Map<String, Tuple2<MutableAttributeStateHolder, Integer>> state = Map.of("asset-1" + "-" + "PT1S" + "-" + "RSI-14-ThreshBelow30", Tuples.of(h, 0));
+		IndicatorStateManager iism = new IndicatorStateManager(state);
 		// comp interface
 		InternalStateReader reader = (s) -> iism.getState().get(s);
 		
-		Tuple2<MutableInternalStateHolder, Integer> intState = reader.apply("asset-1-PT1S-RSI-14-ThreshBelow30");
+		Tuple2<MutableAttributeStateHolder, Integer> intState = reader.apply("asset-1-PT1S-RSI-14-ThreshBelow30");
 		
-		Tuple3<Integer, Double, IndicatorInternalState> input = Tuples.of(0, testData.get(0).getValue(), intState.getT1().getState());
-		Tuple2<Optional<IndicatorEvent>, IndicatorInternalState> out = i.test(input);
+		Tuple2<Optional<IndicatorEvent>, IndicatorAttributeState> out = i.test(new IndicatorTestSpec(0, testData.get(0).getValue(), intState.getT1().getState()));
 		intState.getT1().setState(out.getT2());
 		
 		assertThat(out.getT1().isEmpty(), equalTo(true));
-		
-	}
-	
-	@Test
-	public void updatesStateForMatchingSKIndicators() {
-		
-		MutableInternalStateHolder mish = new MutableInternalStateHolder();
-		mish.setState(IndicatorInternalState.builder("test").build());
-		assertThat(mish.getState().fnId, equalTo("test"));
-		
 		
 	}
 	
@@ -237,18 +229,18 @@ public class IndicatorSampleSubscriberTest {
 		
 		Function<InternalStateReader, 
 		Function<List<IndicatorDetails>, 
-			List<Tuple2<IndicatorDetails, Tuple2<MutableInternalStateHolder, Integer>>>>> fn = SampleSubscriber.getIndicatorFnAndState;
+			List<Tuple2<IndicatorDetails, Tuple2<MutableAttributeStateHolder, Integer>>>>> fn = SampleSubscriber.getIndicatorFnAndState;
 		
 		// Mocks input state reader
-		MutableInternalStateHolder h = new MutableInternalStateHolder();
-		h.setState(IndicatorInternalState.builder("").build());
-		Map<String, Tuple2<MutableInternalStateHolder, Integer>> state = Map.of("asset-1" + "-" + "PT1S" + "-" + "RSI-14-ThreshBelow30", Tuples.of(h, 0));
-		IndicatorInternalStateManager iism = new IndicatorInternalStateManager(state);
+		MutableAttributeStateHolder h = new MutableAttributeStateHolder();
+		h.setState(new IndicatorAttributeState());
+		Map<String, Tuple2<MutableAttributeStateHolder, Integer>> state = Map.of("asset-1" + "-" + "PT1S" + "-" + "RSI-14-ThreshBelow30", Tuples.of(h, 0));
+		IndicatorStateManager iism = new IndicatorStateManager(state);
 		// comp interface
 		InternalStateReader reader = (s) -> iism.getState().get(s);
 		
-		Function<List<IndicatorDetails>, List<Tuple2<IndicatorDetails, Tuple2<MutableInternalStateHolder, Integer>>>> indCompFn = fn.apply(reader);
-		List<Tuple2<IndicatorDetails, Tuple2<MutableInternalStateHolder, Integer>>> out = indCompFn.apply(Arrays.asList(new IndicatorDetails("asset-1" + "-" + "PT1S" + "-" + "RSI-14-ThreshBelow30", "RSI-14-ThreshBelow30", "PT1S")));
+		Function<List<IndicatorDetails>, List<Tuple2<IndicatorDetails, Tuple2<MutableAttributeStateHolder, Integer>>>> indCompFn = fn.apply(reader);
+		List<Tuple2<IndicatorDetails, Tuple2<MutableAttributeStateHolder, Integer>>> out = indCompFn.apply(Arrays.asList(new IndicatorDetails("asset-1" + "-" + "PT1S" + "-" + "RSI-14-ThreshBelow30", "RSI-14-ThreshBelow30", "PT1S")));
 		assertThat(out.get(0).getT2().getT1(), equalTo(h));
 		
 	}
@@ -261,25 +253,23 @@ public class IndicatorSampleSubscriberTest {
 	@Test
 	public void uComputeIndicatorsAndUpdateMatchingIndicatorState() {
 		
-		Function<String, Function<Double, Function<List<Tuple2<IndicatorDetails, Tuple2<MutableInternalStateHolder, Integer>>>, List<Tuple2<IndicatorEvent, IndicatorDetails>>>>> fn = SampleSubscriber.computeIndicatorsAndUpdateMatchingIndicatorState;
+		Function<String, Function<Double, Function<List<Tuple2<IndicatorDetails, Tuple2<MutableAttributeStateHolder, Integer>>>, List<Tuple2<IndicatorEvent, IndicatorDetails>>>>> fn = SampleSubscriber.computeIndicatorsAndUpdateMatchingIndicatorState;
 		
-		Function<Double, Function<List<Tuple2<IndicatorDetails, Tuple2<MutableInternalStateHolder, Integer>>>, List<Tuple2<IndicatorEvent, IndicatorDetails>>>> compfn = fn.apply("asset-1");
+		Function<Double, Function<List<Tuple2<IndicatorDetails, Tuple2<MutableAttributeStateHolder, Integer>>>, List<Tuple2<IndicatorEvent, IndicatorDetails>>>> compfn = fn.apply("asset-1");
 		
 		// state
-		MutableInternalStateHolder h = new MutableInternalStateHolder();
-		h.setState(IndicatorInternalState.builder("rsi-fn-1")
-				.put("rsi-value", 7935.522040170545)
-				.put("rsi-ave-loss", 132.82257418166498)
-				.put("rsi-rsi",35.19557443409366)
-				.put("rsi-ave-gain",72.13653628307311)
-				.build()
-				.bindTo("thresh-alt")
-				.builder()
-				.put("prev-state",35.19557443409366)
-				.build());
-		Tuple2<MutableInternalStateHolder, Integer> state = Tuples.of(h, 0);
+		MutableAttributeStateHolder h = new MutableAttributeStateHolder();
+		h.setState(new IndicatorAttributeState(Map.of(
+				"rsi-fn-1-rsi-value", 7935.522040170545,
+				"rsi-fn-1-rsi-ave-loss", 132.82257418166498,
+				"rsi-fn-1-rsi-rsi",35.19557443409366,
+				"rsi-fn-1-rsi-ave-gain",72.13653628307311,
+				"thresh-alt-prev-state",35.19557443409366
+				)));
+		
+		Tuple2<MutableAttributeStateHolder, Integer> state = Tuples.of(h, 0);
 		IndicatorDetails inddesc = new IndicatorDetails("asset-1" + "-" + "PT1S" + "-" + "RSI-14-ThreshBelow30", "RSI-14-ThreshBelow30", "PT1S");
-		List<Tuple2<IndicatorDetails, Tuple2<MutableInternalStateHolder, Integer>>> existingState = Arrays.asList(Tuples.of(inddesc, state));
+		List<Tuple2<IndicatorDetails, Tuple2<MutableAttributeStateHolder, Integer>>> existingState = Arrays.asList(Tuples.of(inddesc, state));
 		List<Tuple2<IndicatorEvent, IndicatorDetails>> out = compfn.apply(5142.990459018316).apply(existingState);
 		assertThat(out.get(0).getT1().getAlert(), equalTo("Value moved below set threshold 30.0"));
 		assertThat(out.get(0).getT2().getStateKey(), equalTo("asset-1" + "-" + "PT1S" + "-" + "RSI-14-ThreshBelow30"));

@@ -1,22 +1,23 @@
 package com.hdekker.indicators.indicator.alert;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 
 import com.hdekker.indicators.indicator.IndicatorAlert;
 import com.hdekker.indicators.indicator.IndicatorFnConfig;
-import com.hdekker.indicators.indicator.state.impl.IndicatorInternalState;
+import com.hdekker.indicators.indicator.state.impl.IndicatorAttributeState;
 
 import reactor.util.function.Tuples;
 
-public interface Threshold {
+public class Threshold {
 	
 	public static final String THRESHOLD = "threshold";
 	public static final String PREV_STATE = "prev-state";
 	
-	Function<Double, BiPredicate<Double, Double>> movedAboveThreshold = (threshold) -> (current, previous) -> (current>threshold&&previous<threshold);
-	Function<Double, BiPredicate<Double, Double>> movedBelowThreshold = (threshold) -> (current, previous) -> (current<threshold&&previous>threshold);						
+	static Function<Double, BiPredicate<Double, Double>> movedAboveThreshold = (threshold) -> (current, previous) -> (current>threshold&&previous<threshold);
+	static Function<Double, BiPredicate<Double, Double>> movedBelowThreshold = (threshold) -> (current, previous) -> (current<threshold&&previous>threshold);						
 	
 	public static IndicatorFnConfig<IndicatorAlert> movesAboveThresholdAlert() {
 			
@@ -32,19 +33,22 @@ public interface Threshold {
 		
 		return (alertText) -> (thresholdFnBuilder) -> (conf) -> { 
 		
-			Function<String, Object> confStateReader = conf.stateReader();
+			String id = conf.getIndicatorFnId();
+			Function<String, Double> confStateReader = conf.getConfig().stateReader(conf.getIndicatorFnId());
 			Double threshold = (Double) Optional.of(confStateReader.apply(THRESHOLD)).get();
 			BiPredicate<Double, Double> thresholdFn = thresholdFnBuilder.apply(threshold);
 			
 			return (d)-> {
 				
 			// create new state
-			IndicatorInternalState newState = d.getT2().builder()
-								.put(PREV_STATE, d.getT1())
-								.build();
-							
+			IndicatorAttributeState newState = d.getT2().copyAndPutAll(Map.of(
+					 id + "-" + PREV_STATE, d.getT1()
+					));
+	
 			// test against threshold
-			Optional<IndicatorEvent> ie = Optional.ofNullable(d.getT2().stateReader().apply(PREV_STATE))
+			// TODO 16-09 the fn's should care about the fn id internally.
+			// almost need to go to a list of fn attribute maps.
+			Optional<IndicatorEvent> ie = Optional.ofNullable(d.getT2().stateReader(id).apply(PREV_STATE))
 							.map(o-> thresholdFn.test(d.getT1(), (Double) o ))
 							.filter(b-> b.equals(true))
 							.map(b-> new IndicatorEvent(d.getT1(), alertText + " " + threshold)); // new event

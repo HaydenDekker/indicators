@@ -14,8 +14,9 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
 import com.hdekker.indicators.indicator.IndicatorAlert;
-import com.hdekker.indicators.indicator.state.impl.IndicatorInternalState;
-import com.hdekker.indicators.indicator.state.impl.IndicatorInternalStateManager;
+import com.hdekker.indicators.indicator.IndicatorFnConfig.IndicatorFnConfigSpec;
+import com.hdekker.indicators.indicator.state.impl.IndicatorAttributeState;
+import com.hdekker.indicators.indicator.state.impl.IndicatorStateManager;
 
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
@@ -52,15 +53,12 @@ public class ThresholdTests {
 	public void alertsToThresholdExceed() {
 		
 		IndicatorAlert fn = Threshold.movesAboveThresholdAlert()
-				.withConfig(IndicatorInternalState.builder("isd23")
-																	.put("threshold", 10.00).build()
-		);
+				.withConfig(new IndicatorFnConfigSpec("isd23", new IndicatorAttributeState(Map.of("isd23-threshold", 10.00))));
+		
 		long dur1 = System.currentTimeMillis();
-		Tuple2<Optional<IndicatorEvent>, IndicatorInternalState> alert = fn.apply(
+		Tuple2<Optional<IndicatorEvent>, IndicatorAttributeState> alert = fn.apply(
 																	Tuples.of(11.00, 
-																		IndicatorInternalState.builder("isd23")
-																			.put(Threshold.PREV_STATE, 7.00)
-																			.build()));
+																			new IndicatorAttributeState(Map.of("isd23-"+Threshold.PREV_STATE, 7.00))));
 		long dur2 = System.currentTimeMillis();
 		long exetime = (dur2 - dur1);
 		LoggerFactory.getLogger(ThresholdTests.class)
@@ -75,13 +73,13 @@ public class ThresholdTests {
 	@Test
 	public void alertsToThesholdSubceed() {
 		
-		IndicatorAlert ia = Threshold.movesBelowThresholdAlert()
-						.withConfig(IndicatorInternalState.builder("isd23").put("threshold", 10.00).build());
+		IndicatorAlert fn = Threshold.movesBelowThresholdAlert()
+				.withConfig(new IndicatorFnConfigSpec("isd23", new IndicatorAttributeState(Map.of("isd23-threshold", 10.00))));
 		
-		IndicatorInternalState prevState = IndicatorInternalState.builder("isd23").put("prev-state", 7.00).build();
-		Tuple2<Optional<IndicatorEvent>, IndicatorInternalState> empty = ia.apply(Tuples.of(11.00, prevState));
+		IndicatorAttributeState prevState = new IndicatorAttributeState(Map.of("isd23-"+Threshold.PREV_STATE, 7.00));
+		Tuple2<Optional<IndicatorEvent>, IndicatorAttributeState> empty = fn.apply(Tuples.of(11.00, prevState));
 		assertThat(empty.getT1(), equalTo(Optional.empty()));
-		Tuple2<Optional<IndicatorEvent>, IndicatorInternalState> alert = ia.apply(Tuples.of(7.00,empty.getT2()));
+		Tuple2<Optional<IndicatorEvent>, IndicatorAttributeState> alert = fn.apply(Tuples.of(7.00,empty.getT2()));
 		assertThat(alert.getT1().get().getAlert(), equalTo("Value moved below set threshold 10.0"));
 		
 	}

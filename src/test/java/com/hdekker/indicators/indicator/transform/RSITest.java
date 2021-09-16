@@ -12,8 +12,9 @@ import static org.hamcrest.MatcherAssert.*;
 
 import org.junit.jupiter.api.Test;
 
+import com.hdekker.indicators.indicator.IndicatorFnConfig.IndicatorFnConfigSpec;
 import com.hdekker.indicators.indicator.IndicatorTransform;
-import com.hdekker.indicators.indicator.state.impl.IndicatorInternalState;
+import com.hdekker.indicators.indicator.state.impl.IndicatorAttributeState;
 
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
@@ -23,20 +24,21 @@ public class RSITest {
 	@Test
 	public void rsiTransformProducesCorrectValueGivenStateAndInput() {
 		
-		IndicatorInternalState conf = IndicatorInternalState.builder("rsi-fn-1")
-					.put("steps", 14.00)
-					.build();
+		IndicatorAttributeState conf = new IndicatorAttributeState(Map.of("rsi-fn-1-steps", 14.00));
 		
-		IndicatorTransform rsiIndicatorTransform = RSI.getTransform().withConfig(conf);
+		IndicatorTransform rsiIndicatorTransform = RSI.getTransform().withConfig(new IndicatorFnConfigSpec("rsi-fn-1", conf));
 		
 		List<Double> newValue = Arrays.asList(32.5, 50.0, 52.0, 40.0, 42.0, 29.0, 28.0, 25.0, 23.0);
-		IndicatorInternalState initialState = IndicatorInternalState.builder("rsi-fn-1")
-							.build();
+		IndicatorAttributeState initialState = new IndicatorAttributeState();
 		
-		Tuple2<Double, IndicatorInternalState> output = rsiIndicatorTransform.apply(Tuples.of(newValue.get(0), initialState));
+		Tuple2<Double, IndicatorAttributeState> output = rsiIndicatorTransform.apply(Tuples.of(newValue.get(0), initialState));
 		assertThat(output.getT1(), closeTo(100.0, 2.0));
 		// assertThat(output.getT2().getState(), hasKey("rsi-fn-1-steps"));
-		assertThat(output.getT2().getState(), hasKey("rsi-fn-1-rsi-ave-gain"));
+		assertThat(output.getT2().getState(), hasKey("rsi-fn-1-" + RSI.aveGain));
+		assertThat(output.getT2().getState(), hasKey("rsi-fn-1-" + RSI.aveLoss));
+		assertThat(output.getT2().getState(), hasKey("rsi-fn-1-" + RSI.rsi));
+		assertThat(output.getT2().getState(), hasKey("rsi-fn-1-" + RSI.value));
+		
 		
 	}
 			

@@ -11,7 +11,7 @@ import java.util.List;
  * @author HDekker
  *
  */
-public interface IndicatorConfigurationData{
+public interface IndicatorDataConfiguration{
 
 	String getAssetPrimaryKey();
 	String getAssetSecondaryKey();
