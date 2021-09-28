@@ -5,21 +5,21 @@ import java.util.Optional;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 
-import com.hdekker.indicators.indicator.IndicatorAlert;
-import com.hdekker.indicators.indicator.IndicatorFnConfig;
+import com.hdekker.indicators.indicator.fn.ConfigurableIndicatorFn;
+import com.hdekker.indicators.indicator.fn.IndicatorAlert;
 import com.hdekker.indicators.indicator.state.impl.IndicatorAttributeState;
 
 import reactor.util.function.Tuples;
 
 public class Threshold {
 	
-	public static final String THRESHOLD = "threshold";
+	public static final String VALUE = "value";
 	public static final String PREV_STATE = "prev-state";
 	
 	static Function<Double, BiPredicate<Double, Double>> movedAboveThreshold = (threshold) -> (current, previous) -> (current>threshold&&previous<threshold);
 	static Function<Double, BiPredicate<Double, Double>> movedBelowThreshold = (threshold) -> (current, previous) -> (current<threshold&&previous>threshold);						
 	
-	public static IndicatorFnConfig<IndicatorAlert> movesAboveThresholdAlert() {
+	public static ConfigurableIndicatorFn<IndicatorAlert> movesAboveThresholdAlert() {
 			
 		return thresholdAlertBuilder()
 					.apply("Value moved above set threshold")
@@ -28,14 +28,13 @@ public class Threshold {
 	}
 	
 	static Function<String, 
-	Function<Function<Double, BiPredicate<Double, Double>>, IndicatorFnConfig<IndicatorAlert>>>
+	Function<Function<Double, BiPredicate<Double, Double>>, ConfigurableIndicatorFn<IndicatorAlert>>>
 		thresholdAlertBuilder(){
 		
 		return (alertText) -> (thresholdFnBuilder) -> (conf) -> { 
 		
 			String id = conf.getIndicatorFnId();
-			Function<String, Double> confStateReader = conf.getConfig().stateReader(conf.getIndicatorFnId());
-			Double threshold = (Double) Optional.of(confStateReader.apply(THRESHOLD)).get();
+			Double threshold = (Double) Optional.of(conf.getConfig().get(VALUE)).get();
 			BiPredicate<Double, Double> thresholdFn = thresholdFnBuilder.apply(threshold);
 			
 			return (d)-> {
@@ -62,7 +61,7 @@ public class Threshold {
 					
 	
 	
-	public static IndicatorFnConfig<IndicatorAlert> movesBelowThresholdAlert() {
+	public static ConfigurableIndicatorFn<IndicatorAlert> movesBelowThresholdAlert() {
 						
 		return thresholdAlertBuilder().apply("Value moved below set threshold")
 										.apply(movedBelowThreshold);

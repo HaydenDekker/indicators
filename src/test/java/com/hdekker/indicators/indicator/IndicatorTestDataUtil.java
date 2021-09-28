@@ -4,6 +4,9 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+
+import com.hdekker.indicators.indicator.IndicatorFnDescriptor.IndicatorFNType;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -21,30 +24,31 @@ public class IndicatorTestDataUtil {
 			return Arrays.asList(one);
 		}
 		
-		public static List<TestConfiguration> getSingleTestConfiguration(){
+		public static List<IndicatorSubscription> getSingleTestConfiguration(){
 			
-			TestConfiguration one = new TestConfiguration("asset-1", Duration.ofSeconds(1), List.of(RSI14_THRESH_BELOW30));
+			IndicatorSubscription one = new IndicatorSubscription("asset-1", Duration.ofSeconds(1).toString(), RSI14_THRESH_BELOW30);
 			return Arrays.asList(one);
 		}
 		
-		public static List<TestConfiguration> getMultiTestConfiguration(){
+		public static List<IndicatorSubscription> getMultiTestConfiguration(){
 			
-			TestConfiguration one = new TestConfiguration("asset-1", Duration.ofSeconds(1), List.of(RSI14_THRESH_BELOW30));
-			TestConfiguration two = new TestConfiguration("asset-2", Duration.ofSeconds(1), List.of(RSI14_THRESH_BELOW30));
+			TestConfiguration one = new TestConfiguration("asset-1", Duration.ofSeconds(1), RSI14_THRESH_BELOW30);
+			TestConfiguration two = new TestConfiguration("asset-2", Duration.ofSeconds(1), RSI14_THRESH_BELOW30);
 			
 			return Arrays.asList(one, two);
 		}
 		
-		public static List<TestConfiguration> getMultiTestConfWithMultiIndicators(){
+		public static List<IndicatorSubscription> getMultiTestConfWithMultiIndicators(){
 			
-			TestConfiguration one = new TestConfiguration("asset-1", Duration.ofSeconds(1), List.of(RSI14_THRESH_BELOW30));
-			TestConfiguration two = new TestConfiguration("asset-2", Duration.ofSeconds(1), List.of(RSI14_THRESH_BELOW30));
-			TestConfiguration three = new TestConfiguration("asset-2", Duration.ofSeconds(2), List.of(RSI14_THRESH_BELOW30, "RSI14-ThreshAbove60"));
+			IndicatorSubscription one = new IndicatorSubscription("asset-1", Duration.ofSeconds(1).toString(), RSI14_THRESH_BELOW30);
+			IndicatorSubscription two = new IndicatorSubscription("asset-2", Duration.ofSeconds(1).toString(), RSI14_THRESH_BELOW30);
+			IndicatorSubscription three = new IndicatorSubscription("asset-2", Duration.ofSeconds(2).toString(), RSI14_THRESH_BELOW30);
+			IndicatorSubscription four = new IndicatorSubscription("asset-2", Duration.ofSeconds(2).toString(), "RSI14-ThreshAbove60");
 			
 			return Arrays.asList(one, two, three);
 		}
 		
-		public static Flux<List<TestConfiguration>> confFluxSingleUpdate(){
+		public static Flux<List<IndicatorSubscription>> confFluxSingleUpdate(){
 		
 			return Flux.create(confSink->{
 		
@@ -79,6 +83,28 @@ public class IndicatorTestDataUtil {
 				
 				});
 			
+		}
+
+		/**
+		 * A flux representing a user specified indicator
+		 * with custom properties
+		 * 
+		 * @return
+		 */
+		public static Flux<List<IndicatorConfigurationSpec>> indicatorTestConfigurations() {
+			
+			return Flux.create(sink->{
+				
+				IndicatorConfigurationSpec spec = new IndicatorConfigurationSpec(RSI14_THRESH_BELOW30, 
+					List.of(	
+						new IndicatorFnConfigSpec("1-RSI", Map.of("steps", 14.0), IndicatorFNType.Transform, IndicatorFnIdentity.TRANSFORM_RSI),
+						new IndicatorFnConfigSpec("2-Drops below threshold", Map.of("value", 30.0), IndicatorFNType.Alert, IndicatorFnIdentity.ALERT_THRESHOLD_BELOW)
+					)
+				);
+				
+				sink.next(Arrays.asList(spec));
+				
+			});
 		}
 	
 }

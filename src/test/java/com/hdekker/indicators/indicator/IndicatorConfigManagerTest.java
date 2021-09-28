@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 
 import com.hdekker.indicators.indicator.components.ConfigManger;
+import com.hdekker.indicators.indicator.components.ConfigManger.ConfigManagerConfigSpec;
 import com.hdekker.indicators.indicator.state.impl.IndicatorConfigState;
 import com.hdekker.indicators.indicator.state.impl.IndicatorStateManager;
 import com.hdekker.indicators.indicator.state.impl.MutableAttributeStateHolder;
@@ -49,11 +50,21 @@ public class IndicatorConfigManagerTest {
 		icsComponentReference = IndicatorComponent.getIndicatorConfigManagerInstance();
 		iismComponentRef = IndicatorComponent.getIndicatorStateInstance();
 		
-		ConfigManger<TestConfiguration> fn = ConfigManger.buildStandardConfMan();
+		ConfigManger fn = ConfigManger.buildStandardConfMan();
 		
-		Flux<List<TestConfiguration>> testConfig = IndicatorTestDataUtil.confFluxSingleUpdate();
+		Flux<List<IndicatorSubscription>> testSubscriptions = IndicatorTestDataUtil.confFluxSingleUpdate();
+		Flux<List<IndicatorConfigurationSpec>> testConfigurations = IndicatorTestDataUtil.indicatorTestConfigurations();
 		
-		Flux<Tuple2<IndicatorConfigState, IndicatorStateManager>> output = fn.withInputs(Tuples.of(testConfig, ()-> icsComponentReference, (cf) -> {icsComponentReference = cf;}, ()-> iismComponentRef, (is)->{ iismComponentRef = is;}));
+		Flux<Tuple2<IndicatorConfigState, IndicatorStateManager>> output = fn.withInputs(
+					new ConfigManagerConfigSpec(
+							testSubscriptions, 
+							testConfigurations, 
+							()-> icsComponentReference, 
+							(cf) -> {icsComponentReference = cf;}, 
+							()-> iismComponentRef, 
+							(is)->{ iismComponentRef = is;}
+					)
+		);
 		List<Tuple2<IndicatorConfigState, IndicatorStateManager>> result = output.collect(Collectors.toList()).block();
 		
 		assertThat(result, hasSize(1)); // success result should output exactly one for this test.
@@ -73,7 +84,7 @@ public class IndicatorConfigManagerTest {
 		
 	}
 	
-	Function<TestConfiguration, Tuple3<String, String, List<String>>> inputTrans  = (in) -> Tuples.of(in.getAssetPrimaryKey(), in.getAssetSecondaryKey(), in.getIndicatorId());
+	Function<IndicatorSubscription, Tuple3<String, String, String>> inputTrans  = (in) -> Tuples.of(in.getAssetPrimaryKey(), in.getAssetSortKey(), in.getIndicatorToSubscribe());
 	
 	<T, K> Function<List<T>, List<K>> listConvert(Function<T, K> conv){
 		return (in) -> in.stream().map(conv).collect(Collectors.toList());
@@ -85,13 +96,13 @@ public class IndicatorConfigManagerTest {
 		
 		
 		// don't need reactive stage
-		List<TestConfiguration> initial = IndicatorTestDataUtil.getSingleTestConfiguration();
-		List<TestConfiguration> last = IndicatorTestDataUtil.getMultiTestConfiguration();
+		List<IndicatorSubscription> initial = IndicatorTestDataUtil.getSingleTestConfiguration();
+		List<IndicatorSubscription> last = IndicatorTestDataUtil.getMultiTestConfiguration();
 		
-		IndicatorConfigState ics = new IndicatorConfigState(ConfigManger.inputConversionFn1.apply(initial));
+		IndicatorConfigState ics = new IndicatorConfigState(ConfigManger.convertForFiltering.apply(initial));
 
 		// new conf comes in
-		List<Tuple3<String, String, String>> existingConfig = ConfigManger.findExistingConfig.apply(ConfigManger.inputConversionFn1.apply(last), ics.getState());		
+		List<Tuple3<String, String, String>> existingConfig = ConfigManger.findExistingConfig.apply(ConfigManger.convertForFiltering.apply(last), ics.getState());		
 	
 		assertThat(existingConfig.size(), equalTo(1));
 		assertThat(existingConfig.get(0).getT1(), equalTo("asset-1"));
@@ -101,10 +112,10 @@ public class IndicatorConfigManagerTest {
 	@Test
 	public void uBuildsNewState() {
 		
-		List<TestConfiguration> initial = IndicatorTestDataUtil.getMultiTestConfWithMultiIndicators();
+		List<IndicatorSubscription> initial = IndicatorTestDataUtil.getMultiTestConfWithMultiIndicators();
 		
 		List<Tuple3<String, String, String>> newItems = 
-															ConfigManger.inputConversionFn1
+															ConfigManger.convertForFiltering
 															.andThen(ConfigManger.flattenState)
 															.apply(initial);
 		
@@ -124,10 +135,10 @@ public class IndicatorConfigManagerTest {
 	@Test
 	public void uCreatesNewIndicatorState() {
 		
-		List<TestConfiguration> initial = IndicatorTestDataUtil.getMultiTestConfWithMultiIndicators();
+		List<IndicatorSubscription> initial = IndicatorTestDataUtil.getMultiTestConfWithMultiIndicators();
 		
 		List<Tuple3<String, String, String>> newItems = 
-															ConfigManger.inputConversionFn1
+															ConfigManger.convertForFiltering
 															.andThen(ConfigManger.flattenState)
 															.apply(initial);
 		

@@ -5,18 +5,17 @@ import static org.hamcrest.Matchers.*;
 
 import java.util.Map;
 import java.util.Optional;
-import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
-import com.hdekker.indicators.indicator.IndicatorAlert;
-import com.hdekker.indicators.indicator.IndicatorFnConfig.IndicatorFnConfigSpec;
+import com.hdekker.indicators.indicator.fn.IndicatorAlert;
+import com.hdekker.indicators.indicator.IndicatorFnConfigSpec;
+import com.hdekker.indicators.indicator.IndicatorFnIdentity;
+import com.hdekker.indicators.indicator.IndicatorFnDescriptor.IndicatorFNType;
 import com.hdekker.indicators.indicator.state.impl.IndicatorAttributeState;
-import com.hdekker.indicators.indicator.state.impl.IndicatorStateManager;
 
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
@@ -53,7 +52,7 @@ public class ThresholdTests {
 	public void alertsToThresholdExceed() {
 		
 		IndicatorAlert fn = Threshold.movesAboveThresholdAlert()
-				.withConfig(new IndicatorFnConfigSpec("isd23", new IndicatorAttributeState(Map.of("isd23-threshold", 10.00))));
+				.withConfig(new IndicatorFnConfigSpec("isd23",Map.of("value", 10.00), IndicatorFNType.Alert, IndicatorFnIdentity.ALERT_THRESHOLD_ABOVE));
 		
 		long dur1 = System.currentTimeMillis();
 		Tuple2<Optional<IndicatorEvent>, IndicatorAttributeState> alert = fn.apply(
@@ -74,7 +73,7 @@ public class ThresholdTests {
 	public void alertsToThesholdSubceed() {
 		
 		IndicatorAlert fn = Threshold.movesBelowThresholdAlert()
-				.withConfig(new IndicatorFnConfigSpec("isd23", new IndicatorAttributeState(Map.of("isd23-threshold", 10.00))));
+				.withConfig(new IndicatorFnConfigSpec("isd23", Map.of("value", 10.00), IndicatorFNType.Alert, IndicatorFnIdentity.ALERT_THRESHOLD_BELOW));
 		
 		IndicatorAttributeState prevState = new IndicatorAttributeState(Map.of("isd23-"+Threshold.PREV_STATE, 7.00));
 		Tuple2<Optional<IndicatorEvent>, IndicatorAttributeState> empty = fn.apply(Tuples.of(11.00, prevState));

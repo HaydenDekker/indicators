@@ -6,8 +6,8 @@ import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-import com.hdekker.indicators.indicator.IndicatorFnConfig;
-import com.hdekker.indicators.indicator.IndicatorTransform;
+import com.hdekker.indicators.indicator.fn.ConfigurableIndicatorFn;
+import com.hdekker.indicators.indicator.fn.IndicatorTransform;
 import com.hdekker.indicators.indicator.state.impl.IndicatorAttributeState;
 
 
@@ -15,6 +15,14 @@ import reactor.util.function.Tuples;
 
 public class RSI{
 	
+	private static final String CONFIG_STEPS = "steps";
+	
+	public static final String aveGain = "rsi-ave-gain";
+	public static final String aveLoss = "rsi-ave-loss";
+	public static final String rsi = "rsi-rsi";
+	public static final String value = "rsi-value";
+	
+
 	public static Function<WilderRSIInstant, Function<Double, WilderRSIInstant>> wilderCalculator(Integer steps) {
 		
 		Double stepsAsDouble = Double.valueOf(steps);
@@ -59,19 +67,13 @@ public class RSI{
 	public static Function<Object, Double> valueOrZero() {
 		return (value)-> Optional.ofNullable(value).map(o-> (Double) o).orElse(0.0);
 	};
-	
-	public static final String aveGain = "rsi-ave-gain";
-	public static final String aveLoss = "rsi-ave-loss";
-	public static final String rsi = "rsi-rsi";
-	public static final String value = "rsi-value";
-	
 			
-	public static IndicatorFnConfig<IndicatorTransform> getTransform() {
+	public static ConfigurableIndicatorFn<IndicatorTransform> getTransform() {
 		
 		return (conf)-> {
 		
 			String id = conf.getIndicatorFnId();
-		    Double steps = (Double) Optional.of(conf.getConfig().stateReader(id).apply("steps")).get();
+		    Double steps = (Double) Optional.of(conf.getConfig().get(CONFIG_STEPS)).get();
 			Function<WilderRSIInstant, Function<Double, WilderRSIInstant>> wc = wilderCalculator(steps.intValue());
 		
 			return (input) -> {

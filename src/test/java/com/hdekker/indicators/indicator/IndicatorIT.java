@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 
+import com.hdekker.indicators.indicator.IndicatorComponent.IndicatorComponentInputSpec;
 import com.hdekker.indicators.indicator.alert.IndicatorEvent;
 import com.hdekker.indicators.indicator.components.SampleSubscriber.IndicatorDetails;
 import com.hdekker.indicators.indicator.state.impl.IndicatorConfigState;
@@ -42,13 +43,21 @@ public class IndicatorIT {
 		Tuple2<MutableAttributeStateHolder, Integer> state = Tuples.of(h, 0);
 		IndicatorStateManager indicatorStateMan = new IndicatorStateManager(Map.of("asset-1" + "-" + "PT1S" + "-" + "RSI-14-ThreshBelow30", state));
 		
-		Flux<List<TestConfiguration>> testConfig = IndicatorTestDataUtil.confFluxSingleUpdate();
+		Flux<List<IndicatorSubscription>> testConfig = IndicatorTestDataUtil.confFluxSingleUpdate();
+	
+		IndicatorComponentInputSpec<TestDataInputType> 
+			icis = new IndicatorComponentInputSpec<TestDataInputType>(testConfig, null, inputFlux);
 		
-		Function<Tuple2<Flux<List<TestConfiguration>>, Flux<TestDataInputType>>, 
+		// build component
+		Function<IndicatorComponentInputSpec<TestDataInputType>, 
 			Tuple2<Flux<Tuple2<IndicatorConfigState, IndicatorStateManager>>, 
-						Flux<List<Tuple3<IndicatorEvent, TestDataInputType, IndicatorDetails>>>>> fn = IndicatorComponent.instance(Tuples.of(configState, indicatorStateMan));
+				Flux<List<Tuple3<IndicatorEvent, TestDataInputType, IndicatorDetails>>>>> 
+				fn = IndicatorComponent.instance(Tuples.of(configState, indicatorStateMan));
 		
-		Tuple2<Flux<Tuple2<IndicatorConfigState, IndicatorStateManager>>, Flux<List<Tuple3<IndicatorEvent, TestDataInputType, IndicatorDetails>>>> out = fn.apply(Tuples.of(testConfig, inputFlux));
+		// apply component
+		Tuple2<Flux<Tuple2<IndicatorConfigState, IndicatorStateManager>>, 
+		 Flux<List<Tuple3<IndicatorEvent, TestDataInputType, IndicatorDetails>>>> 
+			out = fn.apply(icis);
 		
 		out.getT1().subscribe();
 		List<List<Tuple3<IndicatorEvent, TestDataInputType, IndicatorDetails>>> alerts = out.getT2().collect(Collectors.toList()).block();

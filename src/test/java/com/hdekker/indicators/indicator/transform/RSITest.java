@@ -12,8 +12,10 @@ import static org.hamcrest.MatcherAssert.*;
 
 import org.junit.jupiter.api.Test;
 
-import com.hdekker.indicators.indicator.IndicatorFnConfig.IndicatorFnConfigSpec;
-import com.hdekker.indicators.indicator.IndicatorTransform;
+import com.hdekker.indicators.indicator.fn.IndicatorTransform;
+import com.hdekker.indicators.indicator.IndicatorFnConfigSpec;
+import com.hdekker.indicators.indicator.IndicatorFnIdentity;
+import com.hdekker.indicators.indicator.IndicatorFnDescriptor.IndicatorFNType;
 import com.hdekker.indicators.indicator.state.impl.IndicatorAttributeState;
 
 import reactor.util.function.Tuple2;
@@ -24,9 +26,7 @@ public class RSITest {
 	@Test
 	public void rsiTransformProducesCorrectValueGivenStateAndInput() {
 		
-		IndicatorAttributeState conf = new IndicatorAttributeState(Map.of("rsi-fn-1-steps", 14.00));
-		
-		IndicatorTransform rsiIndicatorTransform = RSI.getTransform().withConfig(new IndicatorFnConfigSpec("rsi-fn-1", conf));
+		IndicatorTransform rsiIndicatorTransform = RSI.getTransform().withConfig(new IndicatorFnConfigSpec("rsi-fn-1", Map.of("steps", 14.00), IndicatorFNType.Transform, IndicatorFnIdentity.TRANSFORM_RSI));
 		
 		List<Double> newValue = Arrays.asList(32.5, 50.0, 52.0, 40.0, 42.0, 29.0, 28.0, 25.0, 23.0);
 		IndicatorAttributeState initialState = new IndicatorAttributeState();

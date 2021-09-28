@@ -1,4 +1,4 @@
-package com.hdekker.indicators.indicator;
+package com.hdekker.indicators.indicator.fn;
 
 import java.util.Map;
 import java.util.function.Function;

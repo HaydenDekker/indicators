@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 
-import com.hdekker.indicators.indicator.Indicator;
+import com.hdekker.indicators.indicator.fn.Indicator;
 
 public interface ConfigStateReader extends Function<String, Optional<Map<String, List<String>>>>{
 

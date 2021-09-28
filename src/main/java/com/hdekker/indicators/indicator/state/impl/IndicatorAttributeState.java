@@ -25,7 +25,7 @@ public class IndicatorAttributeState extends State<Map<String, Double>>{
 		super(Map.of());
 	}
 	
-	public IndicatorAttributeState(Map<String, Double> state) { // String fnId, 
+	public IndicatorAttributeState(Map<String, Double> state) { 
 		super(state);
 		//this.fnId = fnId;
 	}

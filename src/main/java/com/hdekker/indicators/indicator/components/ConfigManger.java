@@ -17,7 +17,9 @@ import java.util.stream.Collectors;
 
 import javax.swing.plaf.ListUI;
 
-import com.hdekker.indicators.indicator.IndicatorData;
+import com.hdekker.indicators.indicator.IndicatorConfigurationSpec;
+import com.hdekker.indicators.indicator.IndicatorFactory;
+import com.hdekker.indicators.indicator.IndicatorSubscription;
 import com.hdekker.indicators.indicator.state.impl.IndicatorConfigState;
 import com.hdekker.indicators.indicator.state.impl.IndicatorStateManager;
 import com.hdekker.indicators.indicator.state.impl.MutableAttributeStateHolder;
@@ -26,6 +28,7 @@ import reactor.core.publisher.Flux;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuple3;
 import reactor.util.function.Tuple5;
+import reactor.util.function.Tuple6;
 import reactor.util.function.Tuples;
 
 /**
@@ -44,33 +47,81 @@ import reactor.util.function.Tuples;
  *
  * @param <T>
  */
-public interface ConfigManger<T extends IndicatorData> {
+public interface ConfigManger {
+	
+	public class ConfigManagerConfigSpec {
+		
+		final Flux<List<IndicatorSubscription>> subscriptionFlux;
+		final Flux<List<IndicatorConfigurationSpec>> configurationFlux;
+		final Supplier<IndicatorConfigState> configurationStateSupplier;
+		final Consumer<IndicatorConfigState> configurationStateUpdater;
+		final Supplier<IndicatorStateManager> indicatorStateSupplier;
+		final Consumer<IndicatorStateManager> indicatorStateUpdater;
+		
+		public ConfigManagerConfigSpec(Flux<List<IndicatorSubscription>> subscriptionFlux,
+				Flux<List<IndicatorConfigurationSpec>> configurationFlux,
+				Supplier<IndicatorConfigState> configurationStateSupplier,
+				Consumer<IndicatorConfigState> configurationStateUpdater,
+				Supplier<IndicatorStateManager> indicatorStateSupplier,
+				Consumer<IndicatorStateManager> indicatorStateUpdater) {
+			super();
+			this.subscriptionFlux = subscriptionFlux;
+			this.configurationFlux = configurationFlux;
+			this.configurationStateSupplier = configurationStateSupplier;
+			this.configurationStateUpdater = configurationStateUpdater;
+			this.indicatorStateSupplier = indicatorStateSupplier;
+			this.indicatorStateUpdater = indicatorStateUpdater;
+		}
+		public Flux<List<IndicatorSubscription>> getSubscriptionFlux() {
+			return subscriptionFlux;
+		}
+		public Flux<List<IndicatorConfigurationSpec>> getConfigurationFlux() {
+			return configurationFlux;
+		}
+		public Supplier<IndicatorConfigState> getConfigurationStateSupplier() {
+			return configurationStateSupplier;
+		}
+		public Consumer<IndicatorConfigState> getConfigurationStateUpdater() {
+			return configurationStateUpdater;
+		}
+		public Supplier<IndicatorStateManager> getIndicatorStateSupplier() {
+			return indicatorStateSupplier;
+		}
+		public Consumer<IndicatorStateManager> getIndicatorStateUpdater() {
+			return indicatorStateUpdater;
+		}
+		
+	}
 	
 	Flux<Tuple2<IndicatorConfigState,
-	IndicatorStateManager>> withInputs(Tuple5<
-				Flux<List<T>>, 
-				Supplier<IndicatorConfigState>,
-				Consumer<IndicatorConfigState>,
-				Supplier<IndicatorStateManager>,
-				Consumer<IndicatorStateManager>
-				> input);
+	IndicatorStateManager>> withInputs(ConfigManagerConfigSpec input);
 	
-	public static <T extends IndicatorData> ConfigManger<T> buildStandardConfMan(){
+	public static ConfigManger buildStandardConfMan(){
 		
-			return (tuple5) -> {
+			return (config) -> {
 				
-				return tuple5.getT1().map(l->{
+				// listen for indicator definition updates
+				config.getConfigurationFlux()
+					.subscribe(indConfigUpdate->
+						indConfigUpdate.forEach(indConfig->
+							IndicatorFactory.configureIndicator(indConfig)
+						)
+				);
+				
+				// listen for subscriptions
+				return config.getSubscriptionFlux().map(l->{
 					
-					Map<String, Map<String, List<String>>> items = inputConversionFn1.apply(l);
+					Map<String, Map<String, List<String>>> items = convertForFiltering.apply(l);
 					List<Tuple3<String, String, String>> newItems = flattenState.apply(items);
-					List<Tuple3<String, String, String>> existingItems = findExistingConfig.apply(items, tuple5.getT2().get().getState());
+					List<Tuple3<String, String, String>> existingItems = findExistingConfig.apply(items, config.getConfigurationStateSupplier().get().getState());
 					
-					Map<String, Tuple2<MutableAttributeStateHolder, Integer>> newMap = IndicatorStateManager.getInternalStateMap
+					Map<String, Tuple2<MutableAttributeStateHolder, Integer>> 
+						newMap = IndicatorStateManager.getInternalStateMap
 							.apply(IndicatorStateManager.withNewInternalState)
 							.apply(newItems);
 					
 					Map<String, Tuple2<MutableAttributeStateHolder, Integer>> existingMap = IndicatorStateManager.getInternalStateMap
-							.apply(IndicatorStateManager.withExistingInternalState.apply(tuple5.getT4().get().getState()))
+							.apply(IndicatorStateManager.withExistingInternalState.apply(config.getIndicatorStateSupplier().get().getState()))
 							.apply(existingItems);
 					
 					Map<String, Tuple2<MutableAttributeStateHolder, Integer>> combined = new HashMap<>();
@@ -81,8 +132,8 @@ public interface ConfigManger<T extends IndicatorData> {
 					IndicatorConfigState ics = new IndicatorConfigState(items);
 					
 					// update global state
-					tuple5.getT5().accept(iism);
-					tuple5.getT3().accept(ics);
+					config.getIndicatorStateUpdater().accept(iism);
+					config.getConfigurationStateUpdater().accept(ics);
 					
 					return Tuples.of(ics, iism);
 				});
@@ -92,22 +143,50 @@ public interface ConfigManger<T extends IndicatorData> {
 		
 	}
 	
-	Function<List<? extends IndicatorData>, Map<String, Map<String, List<String>>>>
-				inputConversionFn1 = (list)->{
+	// map functions for input conversion fn1
+	Function<IndicatorSubscription, String> keyMap = (is) -> is.getAssetPrimaryKey();
+	
+	Function<IndicatorSubscription, Map<String, List<String>>> valMap = (in) -> Map.of(in.getAssetSortKey(), List.of(in.getIndicatorToSubscribe()));
+	
+	/***
+	 * Will only every have a single
+	 * indicator per subscription
+	 * 
+	 * This checks if multiple indicators apply
+	 * to the same asset and sortkey then
+	 * mergers those indicators to a single
+	 * list.
+	 * 
+	 * TODO as users define indicators, many
+	 * indicators may be identical but have 
+	 * different name. Waste of computation
+	 * 
+	 */
+	BinaryOperator<Map<String, List<String>>> merge = (prev, nxt) -> {
+		
+		HashMap<String, List<String>> map = new HashMap<>(prev);
+		nxt.entrySet()
+			.forEach(entry->{
+			map.merge(entry.getKey(), 
+					entry.getValue(), 
+					(p,n) -> {
+						List<String> l = new ArrayList<>();
+						l.addAll(n);
+						l.addAll(p);
+						return l;
+					});
+		});
+		return map;
+		
+	};
+	
+	Function<List<IndicatorSubscription>, Map<String, Map<String, List<String>>>>
+				convertForFiltering = (list)->{
 					
-					BinaryOperator<Map<String, List<String>>> merge = (prev, nxt) -> {
-						
-						HashMap<String, List<String>> map = new HashMap<>(prev);
-						map.putAll(nxt);
-						return map;
-						
-					};
-					
-					Function<IndicatorData, String> keyMap = (in) -> in.getAssetPrimaryKey();
-					Function<IndicatorData, Map<String, List<String>>> valMap = (in) -> Map.of(in.getAssetSecondaryKey(), in.getIndicatorId());
 					Map<String, Map<String, List<String>>> conv = list.stream()
-						.collect(Collectors.toMap(keyMap, 
-										valMap, merge));
+							.collect(Collectors.toMap(keyMap, 
+											valMap, merge));
+
 					return conv;
 	};
 	
