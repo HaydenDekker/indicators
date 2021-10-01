@@ -1,21 +1,28 @@
 package com.hdekker.indicators.indicator.components;
 
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import org.slf4j.LoggerFactory;
+
 import com.hdekker.indicators.indicator.IndicatorSampleData;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.hdekker.indicators.indicator.IndicatorFactory;
 import com.hdekker.indicators.indicator.alert.IndicatorEvent;
+import com.hdekker.indicators.indicator.fn.Indicator.IndicatorTestResult;
 import com.hdekker.indicators.indicator.fn.Indicator.IndicatorTestSpec;
 import com.hdekker.indicators.indicator.state.impl.ConfigStateReader;
 import com.hdekker.indicators.indicator.state.impl.IndicatorAttributeState;
-import com.hdekker.indicators.indicator.state.impl.InternalStateReader;
-import com.hdekker.indicators.indicator.state.impl.MutableAttributeStateHolder;
+import com.hdekker.indicators.indicator.state.impl.MutableIndicatorStateManager;
 
 import reactor.core.publisher.Flux;
 import reactor.util.function.Tuple2;
@@ -39,7 +46,7 @@ public interface SampleSubscriber<K extends IndicatorSampleData> {
 	Flux<List<Tuple3<IndicatorEvent, K, IndicatorDetails>>> withInputs(Tuple3<
 						Flux<K>,
 						ConfigStateReader,
-						InternalStateReader
+						Supplier<MutableIndicatorStateManager>
 						> samplesAndConfig);
 	
 	public class IndicatorDetails {
@@ -73,55 +80,138 @@ public interface SampleSubscriber<K extends IndicatorSampleData> {
 	
 	public static <K extends IndicatorSampleData> SampleSubscriber<K> builder() {
 		
+		ObjectMapper om = new ObjectMapper();
+		om.registerModule(new JavaTimeModule());
+		
 		return (tuple3)->{
 			
 			Function<List<IndicatorDetails>, 
-				List<Tuple2<IndicatorDetails, Tuple2<MutableAttributeStateHolder, Integer>>>> 
-				stateGetter = getIndicatorFnAndState.apply(tuple3.getT3());
+				List<Tuple2<IndicatorDetails, Optional<IndicatorTestResult>>>> 
+					stateGetter = getIndicatorFnAndState.apply(tuple3.getT3());
 			
 			return tuple3.getT1()
 					.map(sample->{
-				
-						Function<List<Tuple2<IndicatorDetails, Tuple2<MutableAttributeStateHolder, Integer>>>, 
-							List<Tuple2<IndicatorEvent, IndicatorDetails>>> 
-							sub = computeIndicatorsAndUpdateMatchingIndicatorState.apply(sample.getSecondaryKey())
-									.apply(sample.getValue());
+						
+						Function<List<Tuple2<IndicatorDetails, Optional<IndicatorTestResult>>>, 
+							List<Optional<Tuple2<IndicatorDetails,IndicatorTestResult>>>> 
+							compInd = computeIndicators.apply(Tuples.of(sample.getValue(), sample.getSampleDateTime()));
+								
 						Optional<Map<String, List<String>>> optConfigMap =  tuple3.getT2().apply(sample.getPrimaryKey());
 				
-						return optConfigMap.map(map-> convertToIndStateKeys.apply(sample.getPrimaryKey(), map))
+//						try {
+//							LoggerFactory.getLogger(SampleSubscriber.class)
+//								.info("Config found for sample sk " + om.writeValueAsString(optConfigMap.get()));
+//						} catch (JsonProcessingException e1) {
+//							// TODO Auto-generated catch block
+//							e1.printStackTrace();
+//						}
+						
+						List<Tuple3<IndicatorEvent, K, IndicatorDetails>> l = optConfigMap.map(map-> convertToIndStateKeys.apply(sample.getPrimaryKey(), map))
 								.map(stateGetter)
-								.map(sub)
-								.map(iel->  iel.stream()
-												.map(ie-> Tuples.of(ie.getT1(), sample, ie.getT2()))
-												.collect(Collectors.toList()))
+								.map(compInd)
+								.map(iel->{
+									return iel.stream()
+										// this component only outputs alerts so 
+										// filter if alert didn't trigger
+										// filter where indicator didn't test
+										.filter(Optional::isPresent)
+										.map(Optional::get)
+										// at this point we can check to see if the 
+										// indicator state should be updated
+										.peek(e-> {
+											
+											String skToUpdate = sample.getSecondaryKey();
+											if(skToUpdate.equals(e.getT1().getsK())) {
+												
+												try {
+													LoggerFactory.getLogger(SampleSubscriber.class)
+														.debug("Indicator State updated: " + e.getT1().getStateKey() + " is " + om.writeValueAsString(e.getT2()));
+												} catch (JsonProcessingException e1) {
+													// TODO Auto-generated catch block
+													e1.printStackTrace();
+												}
+												tuple3.getT3()
+													.get()
+													.getState()
+													.put(e.getT1().getStateKey(), e.getT2());
+											}
+										})
+										// filter where event wasn't triggered
+										.filter(ie->ie.getT2().getOptEvent().isPresent())
+										.map(ie-> Tuples.of( ie.getT2()
+														.getOptEvent()
+														.get(), 
+														sample, 
+														ie.getT1()))
+										
+										.collect(Collectors.toList());
+								}) 
 								.orElse(Arrays.asList());
+						
+						
+						return l;
 				
 					})
-					.filter(l->l.size()>0); // don't need event if it failed.
+					// don't need event if indicator did not produce one.
+					.filter(l->l.size()>0);
 			
 		};
 		
 	}
 	
-	//TODO movooee all this
 	
-	Function<String,
-	Function<Double,
-	Function<List<Tuple2<IndicatorDetails, Tuple2<MutableAttributeStateHolder, Integer>>>,
-			List<Tuple2<IndicatorEvent, IndicatorDetails>>>>> computeIndicatorsAndUpdateMatchingIndicatorState
-			 = (skToUpdate) -> (newValue) -> (inds) -> {
-				 
+	/**
+	 * AndUpdateMatchingIndicatorState 
+	 * 1-10-21 - no longer updating state in this function
+	 * will bring that to the top level
+	 * 
+	 */
+	//Function<String,
+	Function<Tuple2<Double, LocalDateTime>,
+	Function<List<Tuple2<IndicatorDetails, Optional<IndicatorTestResult>>>,
+			List<Optional<Tuple2<IndicatorDetails,IndicatorTestResult>>>>> computeIndicators //AndUpdateMatchingIndicatorState
+			 = (newValueAndSampleDate) -> (inds) -> { // (skToUpdate) ->
+				  
 				 return inds.stream().map(ind->{
-					
-					Tuple2<Optional<IndicatorEvent>, IndicatorAttributeState> res = IndicatorFactory.getIndicator(ind.getT1().getIndicatorKey())
-					 			.test(new IndicatorTestSpec(0, newValue, ind.getT2().getT1().getState()));
-					
-					if(skToUpdate.equals(ind.getT1().getsK())) ind.getT2().getT1().setState(res.getT2());
-					
-					return res.getT1().map(ie-> Tuples.of(ie, ind.getT1()));
+					 
+					 Optional<IndicatorTestSpec> testSpec = ind.getT2()
+						// a previous result may be available so need to use that
+						// state if it is.
+						.map(tr ->
+							// if a previous test result is present, check the data to see if
+							// the indicator should be applied.
+							Optional.of(tr)
+								.filter(t ->
+									 newValueAndSampleDate.getT2().isAfter(tr.getSpec().getSampleDate())
+								)
+								.map(t-> new IndicatorTestSpec(
+				 					0, 
+				 					newValueAndSampleDate.getT1(), 
+				 					newValueAndSampleDate.getT2(), 
+				 					tr.getSpec().getIndicatorAttributeState())))
+						.orElse(
+							Optional.of(new IndicatorTestSpec(
+			 					0, 
+			 					newValueAndSampleDate.getT1(), 
+			 					newValueAndSampleDate.getT2(), 
+			 					new IndicatorAttributeState()))
+						);
+						
+					// test if present
+					 Optional<Tuple2<IndicatorDetails,IndicatorTestResult>> output = testSpec.map(spec->IndicatorFactory.getIndicator(ind.getT1().getIndicatorKey())
+				 				.test(spec))
+					 		.map(res-> Tuples.of(ind.getT1(), res));
+					 
+//					 output.map(rr->rr.getT2())
+//					 	.flatMap(tr-> tr.getOptEvent())
+//					 	.ifPresent(a->{
+//					 		LoggerFactory.getLogger(SampleSubscriber.class)
+//							.info("Indicator alerted: " + e.getT1().getStateKey() + " is " + om.writeValueAsStri
+//					 	});
+					 
+					 return output;
+
 				 })
-				 .filter(Optional::isPresent)
-				 .map(Optional::get)
 				 .collect(Collectors.toList());
 				 
 			 };
@@ -139,11 +229,11 @@ public interface SampleSubscriber<K extends IndicatorSampleData> {
 											.stream())
 							.collect(Collectors.toList());
 			
-	Function<InternalStateReader,
+	Function<Supplier<MutableIndicatorStateManager>,
 		Function<List<IndicatorDetails>,
-			List<Tuple2<IndicatorDetails, Tuple2<MutableAttributeStateHolder, Integer>>>>> getIndicatorFnAndState
-				 = (reader) -> (keys) -> keys.stream()
-					.map(key-> Tuples.of(key, reader.apply(key.getStateKey())))
+			List<Tuple2<IndicatorDetails, Optional<IndicatorTestResult>>>>> getIndicatorFnAndState
+				 = (state) -> (keys) -> keys.stream()
+					.map(key-> Tuples.of(key, Optional.ofNullable(state.get().getState().get(key.getStateKey()))))
 					.collect(Collectors.toList());
 	
 				 

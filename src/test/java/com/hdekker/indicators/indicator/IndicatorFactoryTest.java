@@ -4,6 +4,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.mockito.ArgumentMatchers.notNull;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 
 import java.util.List;
@@ -23,6 +24,7 @@ import com.hdekker.indicators.indicator.alert.Threshold;
 import com.hdekker.indicators.indicator.fn.Indicator;
 import com.hdekker.indicators.indicator.fn.IndicatorAlert;
 import com.hdekker.indicators.indicator.fn.IndicatorTransform;
+import com.hdekker.indicators.indicator.fn.Indicator.IndicatorTestResult;
 import com.hdekker.indicators.indicator.fn.Indicator.IndicatorTestSpec;
 import com.hdekker.indicators.indicator.state.impl.IndicatorAttributeState;
 import com.hdekker.indicators.indicator.transform.RSI;
@@ -83,18 +85,23 @@ public class IndicatorFactoryTest {
 					), IndicatorFNType.Alert,
 					IndicatorFnIdentity.ALERT_THRESHOLD_BELOW));
 
-	    Indicator ind = (input) -> rsiT
-	    							.andThen(t-> {
-	    								assertThat(t.getT2().getState().get("1-RSI-" + RSI.aveGain), notNullValue());
-	    								return t;
-	    							})
-	    							.andThen(ia)
-	    							.andThen(t -> {
-	    								assertThat(t.getT2().getState().get("1-RSI-" + RSI.aveGain), notNullValue());
-	    		    					assertThat(t.getT2().getState().get("2-Drops below threshold-" + Threshold.PREV_STATE), notNullValue());
-	    								return t;
-	    							})
-	    							.apply(Tuples.of(input.getValue(),input.getIndicatorAttributeState()));
+	    Indicator ind = (input) -> {
+	    	
+				Tuple2<Optional<IndicatorEvent>, IndicatorTestSpec> res = rsiT.andThen(t-> {
+					assertThat(t.getIndicatorAttributeState().getState().get("1-RSI-" + RSI.aveGain), notNullValue());
+					return t;
+				})
+				.andThen(ia)
+				.andThen(t -> {
+					assertThat(t.getT2().getIndicatorAttributeState().getState().get("1-RSI-" + RSI.aveGain), notNullValue());
+					assertThat(t.getT2().getIndicatorAttributeState().getState().get("2-Drops below threshold-" + Threshold.PREV_STATE), notNullValue());
+					return t;
+				})
+				.apply(input);
+				
+				return new IndicatorTestResult(res.getT1(), res.getT2());
+
+	    };
 	    
 	    BTCData data = null;
 	    //List<Double> mockInputs = Arrays.asList();//  = Arrays.asList(42705.48,32706.48,22705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48,42705.48,42706.48);//42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,42705.48,37215.15,57259.22, 57259.22, 57259.22, 57259.22, 57259.22, 59002.18, 58217.85, 56039.14, 56823.48, 49503.03, 49851.63, 46888.59,46627.15, 43402.67,42705.48,37215.15, 42705.48,37215.15, 42705.48,37215.15, 42705.48,37215.15, 42705.48,37215.15, 42705.48,37215.15); // 2400.5, 2350.0, 2335.0, 2120.0, 1910.0, 1420.0, 1220.0, 1110.0, 935.0, 843.0, 742.0, 621.0, 542.0, 431.0, 300.0, 200.0,2.0,1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0,1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0,1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0, 1.0,1.0,1.0,1.0, 1.0,1.0, 1.0,2.0 );
@@ -121,18 +128,18 @@ public class IndicatorFactoryTest {
 	    				.reduce((p, n) -> {
 	    					
 	    					// a bit silly hmmm
-	    					Tuple2<Optional<IndicatorEvent>, IndicatorAttributeState> alrt = ind.test(new IndicatorTestSpec(0, n.getT2(),p.getT3()));
-	    					indicatorEvents.add(alrt.getT1());
+	    					IndicatorTestResult alrt = ind.test(new IndicatorTestSpec(0, n.getT2(), LocalDateTime.now().minusMonths(2), p.getT3()));
+	    					indicatorEvents.add(alrt.getOptEvent());
 	    					ObjectMapper om = new ObjectMapper();
-	    					assertThat(alrt.getT2().getState().get("1-RSI-" + RSI.aveGain), notNullValue());
-	    					assertThat(alrt.getT2().getState().get("2-Drops below threshold-" + Threshold.PREV_STATE), notNullValue());
+	    					assertThat(alrt.getSpec().getIndicatorAttributeState().getState().get("1-RSI-" + RSI.aveGain), notNullValue());
+	    					assertThat(alrt.getSpec().getIndicatorAttributeState().getState().get("2-Drops below threshold-" + Threshold.PREV_STATE), notNullValue());
 	    					try {
-								LoggerFactory.getLogger(IndicatorFactoryTest.class).info(om.writeValueAsString(alrt.getT2().getState()));
+								LoggerFactory.getLogger(IndicatorFactoryTest.class).info(om.writeValueAsString(alrt.getSpec().getIndicatorAttributeState().getState()));
 							} catch (JsonProcessingException e) {
 								// TODO Auto-generated catch block
 								e.printStackTrace();
 							}
-	    					return Tuples.of(0, n.getT2(),alrt.getT2());
+	    					return Tuples.of(0, n.getT2(),alrt.getSpec().getIndicatorAttributeState());
 	    					
 	    				});
 	    	
@@ -175,13 +182,13 @@ public class IndicatorFactoryTest {
 		
 		Indicator indicator = IndicatorFactory.getIndicator(IndicatorTestDataUtil.RSI14_THRESH_BELOW30);
 		
-		Tuple2<Optional<IndicatorEvent>, IndicatorAttributeState> result = indicator.test(new IndicatorTestSpec(
-				0, 2.0,
+		IndicatorTestResult result = indicator.test(new IndicatorTestSpec(
+				0, 2.0, LocalDateTime.now().minusMonths(2),
 				new IndicatorAttributeState()));
 		
-		assertThat(result.getT1().isEmpty(), equalTo(true));
-		assertThat(result.getT2().getState().get("1-RSI-" + RSI.aveGain), notNullValue());
-		assertThat(result.getT2().getState().get("2-Drops below threshold-" + Threshold.PREV_STATE), notNullValue());
+		assertThat(result.getOptEvent().isEmpty(), equalTo(true));
+		assertThat(result.getSpec().getIndicatorAttributeState().getState().get("1-RSI-" + RSI.aveGain), notNullValue());
+		assertThat(result.getSpec().getIndicatorAttributeState().getState().get("2-Drops below threshold-" + Threshold.PREV_STATE), notNullValue());
 		
 		
 	}

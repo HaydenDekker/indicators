@@ -8,6 +8,7 @@ import java.util.function.Function;
 
 import com.hdekker.indicators.indicator.fn.ConfigurableIndicatorFn;
 import com.hdekker.indicators.indicator.fn.IndicatorTransform;
+import com.hdekker.indicators.indicator.fn.Indicator.IndicatorTestSpec;
 import com.hdekker.indicators.indicator.state.impl.IndicatorAttributeState;
 
 
@@ -79,10 +80,20 @@ public class RSI{
 			return (input) -> {
 			
 				// may not have previous state so check values
-				Double aveGainD = valueOrZero().apply(input.getT2().stateReader(id).apply(aveGain));						
-				Double aveLossD = valueOrZero().apply(input.getT2().stateReader(id).apply(aveLoss));
-				Double rsiD = valueOrZero().apply(input.getT2().stateReader(id).apply(rsi));
-				Double valueD = valueOrZero().apply(input.getT2().stateReader(id).apply(value));
+				Double aveGainD = valueOrZero().apply(
+						input.getIndicatorAttributeState()
+							.stateReader(id)
+							.apply(aveGain));						
+				Double aveLossD = valueOrZero().apply(
+						input.getIndicatorAttributeState()
+							.stateReader(id)
+							.apply(aveLoss));
+				Double rsiD = valueOrZero().apply(
+						input.getIndicatorAttributeState()
+							.stateReader(id).apply(rsi));
+				Double valueD = valueOrZero().apply(
+						input.getIndicatorAttributeState()
+							.stateReader(id).apply(value));
 				
 				WilderRSIInstant wri = new WilderRSIInstant();
 				wri.setAvGain(aveGainD);
@@ -91,16 +102,21 @@ public class RSI{
 				wri.setValue(valueD);
 				
 				WilderRSIInstant out = wc
-						.apply(wri).apply(input.getT1());
+						.apply(wri).apply(input.getValue());
 				
-				IndicatorAttributeState newState = input.getT2().copyAndPutAll(Map.of(
-						 id + '-' + aveGain, out.getAvGain(),
-						 id + '-' + aveLoss, out.getAvLoss(),
-						 id + '-' + rsi, out.getRsi(),
-						 id + '-' + value, out.getValue()
-						));
+				IndicatorAttributeState newState = input.getIndicatorAttributeState()
+							.copyAndPutAll(Map.of(
+								 id + '-' + aveGain, out.getAvGain(),
+								 id + '-' + aveLoss, out.getAvLoss(),
+								 id + '-' + rsi, out.getRsi(),
+								 id + '-' + value, out.getValue()
+								));
 				
-				return Tuples.of(out.getRsi(), newState);
+				return new IndicatorTestSpec(
+							input.getInputPathNum(), 
+							out.getRsi(), 
+							input.getSampleDate(), 
+							newState);
 			};
 		};
 	}

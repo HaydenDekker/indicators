@@ -3,6 +3,7 @@ package com.hdekker.indicators.indicator.alert;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
+import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiPredicate;
@@ -11,6 +12,7 @@ import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
+import com.hdekker.indicators.indicator.fn.Indicator.IndicatorTestSpec;
 import com.hdekker.indicators.indicator.fn.IndicatorAlert;
 import com.hdekker.indicators.indicator.IndicatorFnConfigSpec;
 import com.hdekker.indicators.indicator.IndicatorFnIdentity;
@@ -55,8 +57,8 @@ public class ThresholdTests {
 				.withConfig(new IndicatorFnConfigSpec("isd23",Map.of("value", 10.00), IndicatorFNType.Alert, IndicatorFnIdentity.ALERT_THRESHOLD_ABOVE));
 		
 		long dur1 = System.currentTimeMillis();
-		Tuple2<Optional<IndicatorEvent>, IndicatorAttributeState> alert = fn.apply(
-																	Tuples.of(11.00, 
+		Tuple2<Optional<IndicatorEvent>, IndicatorTestSpec> alert = fn.apply(
+																	new IndicatorTestSpec(0, 11.00, LocalDateTime.now(), 
 																			new IndicatorAttributeState(Map.of("isd23-"+Threshold.PREV_STATE, 7.00))));
 		long dur2 = System.currentTimeMillis();
 		long exetime = (dur2 - dur1);
@@ -76,9 +78,9 @@ public class ThresholdTests {
 				.withConfig(new IndicatorFnConfigSpec("isd23", Map.of("value", 10.00), IndicatorFNType.Alert, IndicatorFnIdentity.ALERT_THRESHOLD_BELOW));
 		
 		IndicatorAttributeState prevState = new IndicatorAttributeState(Map.of("isd23-"+Threshold.PREV_STATE, 7.00));
-		Tuple2<Optional<IndicatorEvent>, IndicatorAttributeState> empty = fn.apply(Tuples.of(11.00, prevState));
+		Tuple2<Optional<IndicatorEvent>, IndicatorTestSpec> empty = fn.apply(new IndicatorTestSpec(0, 11.00, LocalDateTime.now(), prevState));
 		assertThat(empty.getT1(), equalTo(Optional.empty()));
-		Tuple2<Optional<IndicatorEvent>, IndicatorAttributeState> alert = fn.apply(Tuples.of(7.00,empty.getT2()));
+		Tuple2<Optional<IndicatorEvent>, IndicatorTestSpec> alert = fn.apply(new IndicatorTestSpec(0, 7.00, LocalDateTime.now(),empty.getT2().getIndicatorAttributeState()));
 		assertThat(alert.getT1().get().getAlert(), equalTo("Value moved below set threshold 10.0"));
 		
 	}

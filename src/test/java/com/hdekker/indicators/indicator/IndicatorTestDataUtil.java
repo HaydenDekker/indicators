@@ -5,8 +5,13 @@ import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import com.hdekker.indicators.indicator.IndicatorFnDescriptor.IndicatorFNType;
+import com.hdekker.indicators.indicator.fn.Indicator.IndicatorTestResult;
+import com.hdekker.indicators.indicator.fn.Indicator.IndicatorTestSpec;
+import com.hdekker.indicators.indicator.state.impl.IndicatorAttributeState;
+import com.hdekker.indicators.indicator.state.impl.MutableIndicatorStateManager;
 
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -105,6 +110,24 @@ public class IndicatorTestDataUtil {
 				sink.next(Arrays.asList(spec));
 				
 			});
+		}
+		
+		public static MutableIndicatorStateManager stubMutableIndicatorStateManager() {
+			
+			IndicatorAttributeState h = new IndicatorAttributeState(Map.of(
+					"1-RSI-rsi-value", 7935.522040170545,
+					"1-RSI-rsi-ave-loss", 132.82257418166498,
+					"1-RSI-rsi-rsi",35.19557443409366,
+					"1-RSI-rsi-ave-gain",72.13653628307311,
+					"2-Drops below threshold-prev-state",35.19557443409366
+					));
+			IndicatorTestResult state = new IndicatorTestResult(Optional.empty(),
+								new IndicatorTestSpec(0, 0.0, LocalDateTime.now().minusYears(2), h));
+			
+			MutableIndicatorStateManager indicatorStateMan = new MutableIndicatorStateManager(Map.of("asset-1" + "-" + "PT1S" + "-" + "RSI-14-ThreshBelow30", state));
+			
+			return indicatorStateMan;
+			
 		}
 	
 }

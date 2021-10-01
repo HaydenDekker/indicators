@@ -12,7 +12,7 @@ import com.hdekker.indicators.indicator.components.SampleSubscriber.IndicatorDet
 import com.hdekker.indicators.indicator.fn.Indicator;
 import com.hdekker.indicators.indicator.state.State;
 import com.hdekker.indicators.indicator.state.impl.IndicatorConfigState;
-import com.hdekker.indicators.indicator.state.impl.IndicatorStateManager;
+import com.hdekker.indicators.indicator.state.impl.MutableIndicatorStateManager;
 
 import reactor.core.publisher.Flux;
 import reactor.util.function.Tuple2;
@@ -56,8 +56,8 @@ public class IndicatorComponent {
 	 * multiple assets
 	 * 
 	 */
-	public static IndicatorStateManager getIndicatorStateInstance(){
-		return new IndicatorStateManager(Map.of()); 
+	public static MutableIndicatorStateManager getIndicatorStateInstance(){
+		return new MutableIndicatorStateManager(Map.of()); 
 	}
 	
 	/***
@@ -119,7 +119,7 @@ public class IndicatorComponent {
 	 */
 	public interface IndicatorComponentBuilder<K extends IndicatorSampleData> extends 
 	Function<IndicatorComponentInputSpec<K>, 
-	Tuple2<Flux<Tuple2<IndicatorConfigState, IndicatorStateManager>>, Flux<List<Tuple3<IndicatorEvent, K, IndicatorDetails>>>>> {}
+	Tuple2<Flux<Tuple2<IndicatorConfigState, MutableIndicatorStateManager>>, Flux<List<Tuple3<IndicatorEvent, K, IndicatorDetails>>>>> {}
 	
 	
 	public static <K extends IndicatorSampleData> 
@@ -138,18 +138,18 @@ public class IndicatorComponent {
 	public static 
 		<K extends IndicatorSampleData> 
 		IndicatorComponentBuilder<K> instance(
-			Tuple2<IndicatorConfigState, IndicatorStateManager> initialState){
+			Tuple2<IndicatorConfigState, MutableIndicatorStateManager> initialState){
 		
 		MutableStateHolder<IndicatorConfigState> confState = new MutableStateHolder<IndicatorConfigState>();
 		confState.setState(initialState.getT1());
 		
-		MutableStateHolder<IndicatorStateManager> intState = new MutableStateHolder<IndicatorStateManager>();
+		MutableStateHolder<MutableIndicatorStateManager> intState = new MutableStateHolder<MutableIndicatorStateManager>();
 		intState.setState(initialState.getT2());
 		
 		return (configSpec)->{
 			
 			ConfigManger confMan = ConfigManger.buildStandardConfMan();
-			Flux<Tuple2<IndicatorConfigState, IndicatorStateManager>> outConf = 
+			Flux<Tuple2<IndicatorConfigState, MutableIndicatorStateManager>> outConf = 
 					confMan.withInputs(
 							new ConfigManger.ConfigManagerConfigSpec(
 									configSpec.getSubscriptionConfigFlux(), 
@@ -161,9 +161,10 @@ public class IndicatorComponent {
 					);
 			
 			SampleSubscriber<K> samp = SampleSubscriber.builder();
-			Flux<List<Tuple3<IndicatorEvent, K, IndicatorDetails>>> outSamp = samp.withInputs(Tuples.of(configSpec.getDataFlux(), 
+			Flux<List<Tuple3<IndicatorEvent, K, IndicatorDetails>>> outSamp = samp.withInputs(
+							Tuples.of(configSpec.getDataFlux(), 
 							(primaryKey) -> Optional.ofNullable(confState.getState().getState().get(primaryKey)),
-							(indKey) -> intState.getState().getState().get(indKey)
+							() -> intState.getState()
 			));
 			
 			return Tuples.of(outConf, outSamp);

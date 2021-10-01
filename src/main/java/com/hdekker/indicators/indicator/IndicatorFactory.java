@@ -12,11 +12,13 @@ import java.util.stream.Collectors;
 
 import com.hdekker.indicators.indicator.IndicatorFnDescriptor;
 import com.hdekker.indicators.indicator.IndicatorFnDescriptor.IndicatorFNType;
+import com.hdekker.indicators.indicator.alert.IndicatorEvent;
 import com.hdekker.indicators.indicator.alert.Threshold;
 import com.hdekker.indicators.indicator.fn.ConfigurableIndicatorFn;
 import com.hdekker.indicators.indicator.fn.Indicator;
 import com.hdekker.indicators.indicator.fn.IndicatorAlert;
 import com.hdekker.indicators.indicator.fn.IndicatorTransform;
+import com.hdekker.indicators.indicator.fn.Indicator.IndicatorTestResult;
 import com.hdekker.indicators.indicator.fn.Indicator.IndicatorTestSpec;
 import com.hdekker.indicators.indicator.state.State;
 import com.hdekker.indicators.indicator.state.impl.IndicatorAttributeState;
@@ -109,9 +111,14 @@ public class IndicatorFactory {
 		// only allowing one alert per indicator currently.
 		IndicatorAlert ia = alert.get(0);
 		
-		Indicator ind = (in) -> ia.apply(
-			transform.apply(
-				Tuples.of(in.getValue(), in.getIndicatorAttributeState())));
+		Indicator ind = (in) -> {
+			
+			Tuple2<Optional<IndicatorEvent>, IndicatorTestSpec> res 
+				= ia.apply(transform.apply(in));
+			
+			return new IndicatorTestResult(res.getT1(), res.getT2());
+			
+		};
 
 		// Set Indicator Factory State TODO don't set state here
 		Map<String, Indicator>stateMap = new HashMap<>(configuredIndicators.getState());

@@ -22,6 +22,7 @@ public class State<T> {
 	}
 	
 	public T getState() {
+		
 		return state;
 	}	
 	

@@ -6,6 +6,7 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 
 import com.hdekker.indicators.indicator.fn.ConfigurableIndicatorFn;
+import com.hdekker.indicators.indicator.fn.Indicator.IndicatorTestSpec;
 import com.hdekker.indicators.indicator.fn.IndicatorAlert;
 import com.hdekker.indicators.indicator.state.impl.IndicatorAttributeState;
 
@@ -40,19 +41,24 @@ public class Threshold {
 			return (d)-> {
 				
 			// create new state
-			IndicatorAttributeState newState = d.getT2().copyAndPutAll(Map.of(
-					 id + "-" + PREV_STATE, d.getT1()
+			IndicatorAttributeState newState = d.getIndicatorAttributeState().copyAndPutAll(Map.of(
+					 id + "-" + PREV_STATE, d.getValue()
 					));
 	
 			// test against threshold
 			// TODO 16-09 the fn's should care about the fn id internally.
 			// almost need to go to a list of fn attribute maps.
-			Optional<IndicatorEvent> ie = Optional.ofNullable(d.getT2().stateReader(id).apply(PREV_STATE))
-							.map(o-> thresholdFn.test(d.getT1(), (Double) o ))
+			Optional<IndicatorEvent> ie = Optional.ofNullable(d.getIndicatorAttributeState().stateReader(id).apply(PREV_STATE))
+							.map(o-> thresholdFn.test(d.getValue(), (Double) o ))
 							.filter(b-> b.equals(true))
-							.map(b-> new IndicatorEvent(d.getT1(), alertText + " " + threshold)); // new event
+							.map(b-> new IndicatorEvent(d.getValue(), alertText + " " + threshold)); // new event
 							
-			return Tuples.of(ie, newState);
+			return Tuples.of(ie, 
+					new IndicatorTestSpec(
+							d.getInputPathNum(), 
+							d.getValue(), 
+							d.getSampleDate(), 
+							newState));
 		    
 			};
 		};

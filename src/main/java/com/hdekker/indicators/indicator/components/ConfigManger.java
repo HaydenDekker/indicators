@@ -1,5 +1,6 @@
 package com.hdekker.indicators.indicator.components;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -20,9 +21,9 @@ import javax.swing.plaf.ListUI;
 import com.hdekker.indicators.indicator.IndicatorConfigurationSpec;
 import com.hdekker.indicators.indicator.IndicatorFactory;
 import com.hdekker.indicators.indicator.IndicatorSubscription;
+import com.hdekker.indicators.indicator.fn.Indicator.IndicatorTestResult;
 import com.hdekker.indicators.indicator.state.impl.IndicatorConfigState;
-import com.hdekker.indicators.indicator.state.impl.IndicatorStateManager;
-import com.hdekker.indicators.indicator.state.impl.MutableAttributeStateHolder;
+import com.hdekker.indicators.indicator.state.impl.MutableIndicatorStateManager;
 
 import reactor.core.publisher.Flux;
 import reactor.util.function.Tuple2;
@@ -55,15 +56,15 @@ public interface ConfigManger {
 		final Flux<List<IndicatorConfigurationSpec>> configurationFlux;
 		final Supplier<IndicatorConfigState> configurationStateSupplier;
 		final Consumer<IndicatorConfigState> configurationStateUpdater;
-		final Supplier<IndicatorStateManager> indicatorStateSupplier;
-		final Consumer<IndicatorStateManager> indicatorStateUpdater;
+		final Supplier<MutableIndicatorStateManager> indicatorStateSupplier;
+		final Consumer<MutableIndicatorStateManager> indicatorStateUpdater;
 		
 		public ConfigManagerConfigSpec(Flux<List<IndicatorSubscription>> subscriptionFlux,
 				Flux<List<IndicatorConfigurationSpec>> configurationFlux,
 				Supplier<IndicatorConfigState> configurationStateSupplier,
 				Consumer<IndicatorConfigState> configurationStateUpdater,
-				Supplier<IndicatorStateManager> indicatorStateSupplier,
-				Consumer<IndicatorStateManager> indicatorStateUpdater) {
+				Supplier<MutableIndicatorStateManager> indicatorStateSupplier,
+				Consumer<MutableIndicatorStateManager> indicatorStateUpdater) {
 			super();
 			this.subscriptionFlux = subscriptionFlux;
 			this.configurationFlux = configurationFlux;
@@ -84,17 +85,17 @@ public interface ConfigManger {
 		public Consumer<IndicatorConfigState> getConfigurationStateUpdater() {
 			return configurationStateUpdater;
 		}
-		public Supplier<IndicatorStateManager> getIndicatorStateSupplier() {
+		public Supplier<MutableIndicatorStateManager> getIndicatorStateSupplier() {
 			return indicatorStateSupplier;
 		}
-		public Consumer<IndicatorStateManager> getIndicatorStateUpdater() {
+		public Consumer<MutableIndicatorStateManager> getIndicatorStateUpdater() {
 			return indicatorStateUpdater;
 		}
 		
 	}
 	
 	Flux<Tuple2<IndicatorConfigState,
-	IndicatorStateManager>> withInputs(ConfigManagerConfigSpec input);
+	MutableIndicatorStateManager>> withInputs(ConfigManagerConfigSpec input);
 	
 	public static ConfigManger buildStandardConfMan(){
 		
@@ -115,20 +116,22 @@ public interface ConfigManger {
 					List<Tuple3<String, String, String>> newItems = flattenState.apply(items);
 					List<Tuple3<String, String, String>> existingItems = findExistingConfig.apply(items, config.getConfigurationStateSupplier().get().getState());
 					
-					Map<String, Tuple2<MutableAttributeStateHolder, Integer>> 
-						newMap = IndicatorStateManager.getInternalStateMap
-							.apply(IndicatorStateManager.withNewInternalState)
+					Map<String, IndicatorTestResult> 
+						newMap = MutableIndicatorStateManager.
+									<Tuple3<String, String, String>, IndicatorTestResult> getInternalStateMap()
+							.apply(MutableIndicatorStateManager.withNewInternalState)
 							.apply(newItems);
 					
-					Map<String, Tuple2<MutableAttributeStateHolder, Integer>> existingMap = IndicatorStateManager.getInternalStateMap
-							.apply(IndicatorStateManager.withExistingInternalState.apply(config.getIndicatorStateSupplier().get().getState()))
+					Map<String, IndicatorTestResult> existingMap = MutableIndicatorStateManager.
+								<Tuple3<String, String, String>, IndicatorTestResult> getInternalStateMap()
+							.apply(MutableIndicatorStateManager.withExistingInternalState.apply(config.getIndicatorStateSupplier().get().getState()))
 							.apply(existingItems);
 					
-					Map<String, Tuple2<MutableAttributeStateHolder, Integer>> combined = new HashMap<>();
+					Map<String, IndicatorTestResult> combined = new HashMap<>();
 					combined.putAll(newMap);
 					combined.putAll(existingMap);
 					
-					IndicatorStateManager iism = new IndicatorStateManager(combined);
+					MutableIndicatorStateManager iism = new MutableIndicatorStateManager(combined);
 					IndicatorConfigState ics = new IndicatorConfigState(items);
 					
 					// update global state

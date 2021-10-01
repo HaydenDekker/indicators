@@ -1,8 +1,12 @@
 package com.hdekker.indicators.indicator.fn;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 import com.hdekker.indicators.indicator.alert.IndicatorEvent;
+import com.hdekker.indicators.indicator.components.SampleSubscriber.IndicatorDetails;
+import com.hdekker.indicators.indicator.fn.Indicator.IndicatorTestSpec;
 import com.hdekker.indicators.indicator.state.impl.IndicatorAttributeState;
 
 import reactor.util.function.Tuple2;
@@ -19,9 +23,8 @@ import reactor.util.function.Tuple2;
  *
  */
 public interface Indicator {
-	Tuple2<
-		Optional<IndicatorEvent>,
-		IndicatorAttributeState> test(
+	
+		IndicatorTestResult test(
 				IndicatorTestSpec indicatorTestSpec);
 	
 	
@@ -34,13 +37,15 @@ public interface Indicator {
 		
 		final Integer inputPathNum;
 		final Double value;
+		final LocalDateTime sampleDate;
 		final IndicatorAttributeState indicatorAttributeState;
 		
-		public IndicatorTestSpec(Integer inputPathNum, Double value, IndicatorAttributeState indicatorAttributeState) {
+		public IndicatorTestSpec(Integer inputPathNum, Double value, LocalDateTime sampleDate, IndicatorAttributeState indicatorAttributeState) {
 			super();
 			this.inputPathNum = inputPathNum;
 			this.value = value;
 			this.indicatorAttributeState = indicatorAttributeState;
+			this.sampleDate = sampleDate;
 		}
 
 		public Integer getInputPathNum() {
@@ -55,5 +60,34 @@ public interface Indicator {
 			return indicatorAttributeState;
 		}
 
+		public LocalDateTime getSampleDate() {
+			return sampleDate;
+		}
+
+	}
+	
+	public class IndicatorTestResult {
+		
+		final Optional<IndicatorEvent> optEvent;
+		//final IndicatorDetails details;
+		final IndicatorTestSpec spec;
+		
+		public IndicatorTestResult(Optional<IndicatorEvent> optEvent,
+				IndicatorTestSpec spec) {
+			super();
+			this.optEvent = optEvent;
+			//this.details = details;
+			this.spec = spec;
+		}
+		public Optional<IndicatorEvent> getOptEvent() {
+			return optEvent;
+		}
+		
+		public IndicatorTestSpec getSpec() {
+			return spec;
+		}
+		
+		
+		
 	}
 }
