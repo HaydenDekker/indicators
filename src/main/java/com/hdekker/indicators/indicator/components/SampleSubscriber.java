@@ -20,11 +20,14 @@ import com.hdekker.indicators.indicator.IndicatorFactory;
 import com.hdekker.indicators.indicator.alert.IndicatorEvent;
 import com.hdekker.indicators.indicator.fn.Indicator.IndicatorTestResult;
 import com.hdekker.indicators.indicator.fn.Indicator.IndicatorTestSpec;
+import com.hdekker.indicators.indicator.state.IndicatorTestResultEvent;
 import com.hdekker.indicators.indicator.state.impl.ConfigStateReader;
 import com.hdekker.indicators.indicator.state.impl.IndicatorAttributeState;
 import com.hdekker.indicators.indicator.state.impl.MutableIndicatorStateManager;
 
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Sinks;
+import reactor.core.publisher.Sinks.Many;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuple3;
 import reactor.util.function.Tuples;
@@ -43,7 +46,7 @@ import reactor.util.function.Tuples;
  */
 public interface SampleSubscriber<K extends IndicatorSampleData> {
 
-	Flux<List<Tuple3<IndicatorEvent, K, IndicatorDetails>>> withInputs(Tuple3<
+	Tuple2<Flux<IndicatorTestResultEvent>, Flux<List<Tuple3<IndicatorEvent, K, IndicatorDetails>>>> withInputs(Tuple3<
 						Flux<K>,
 						ConfigStateReader,
 						Supplier<MutableIndicatorStateManager>
@@ -83,13 +86,20 @@ public interface SampleSubscriber<K extends IndicatorSampleData> {
 		ObjectMapper om = new ObjectMapper();
 		om.registerModule(new JavaTimeModule());
 		
+		Many<IndicatorTestResultEvent> sink = Sinks.many()
+			.multicast()
+			.directBestEffort();
+			
+		
 		return (tuple3)->{
 			
 			Function<List<IndicatorDetails>, 
 				List<Tuple2<IndicatorDetails, Optional<IndicatorTestResult>>>> 
 					stateGetter = getIndicatorFnAndState.apply(tuple3.getT3());
 			
-			return tuple3.getT1()
+			
+			Flux<List<Tuple3<IndicatorEvent, K, IndicatorDetails>>> alertFlux = tuple3.getT1()
+					//.doOnNext(c-> LoggerFactory.getLogger(SampleSubscriber.class).info("received sample."))
 					.map(sample->{
 						
 						Function<List<Tuple2<IndicatorDetails, Optional<IndicatorTestResult>>>, 
@@ -134,6 +144,12 @@ public interface SampleSubscriber<K extends IndicatorSampleData> {
 													.get()
 													.getState()
 													.put(e.getT1().getStateKey(), e.getT2());
+												
+												sink.tryEmitNext(new IndicatorTestResultEvent(
+																	e.getT1().getStateKey(), 
+																	e.getT2(), 
+																	LocalDateTime.now()));
+												
 											}
 										})
 										// filter where event wasn't triggered
@@ -154,6 +170,8 @@ public interface SampleSubscriber<K extends IndicatorSampleData> {
 					})
 					// don't need event if indicator did not produce one.
 					.filter(l->l.size()>0);
+			
+			return Tuples.of(sink.asFlux(), alertFlux);
 			
 		};
 		

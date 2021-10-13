@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import com.hdekker.indicators.indicator.IndicatorComponent.IndicatorComponentInputSpec;
 import com.hdekker.indicators.indicator.alert.IndicatorEvent;
 import com.hdekker.indicators.indicator.components.SampleSubscriber.IndicatorDetails;
+import com.hdekker.indicators.indicator.state.IndicatorTestResultEvent;
 import com.hdekker.indicators.indicator.state.impl.IndicatorConfigState;
 import com.hdekker.indicators.indicator.state.impl.MutableIndicatorStateManager;
 
@@ -39,17 +40,18 @@ public class IndicatorIT {
 		
 		// build component
 		Function<IndicatorComponentInputSpec<TestDataInputType>, 
-			Tuple2<Flux<Tuple2<IndicatorConfigState, MutableIndicatorStateManager>>, 
-				Flux<List<Tuple3<IndicatorEvent, TestDataInputType, IndicatorDetails>>>>> 
+			Tuple3<Flux<Tuple2<IndicatorConfigState, MutableIndicatorStateManager>>, 
+			Flux<IndicatorTestResultEvent>,Flux<List<Tuple3<IndicatorEvent, TestDataInputType, IndicatorDetails>>>>> 
 				fn = IndicatorComponent.instance(Tuples.of(configState, indicatorStateMan));
 		
 		// apply component
-		Tuple2<Flux<Tuple2<IndicatorConfigState, MutableIndicatorStateManager>>, 
+		Tuple3<Flux<Tuple2<IndicatorConfigState, MutableIndicatorStateManager>>,
+			Flux<IndicatorTestResultEvent>,
 		 Flux<List<Tuple3<IndicatorEvent, TestDataInputType, IndicatorDetails>>>> 
 			out = fn.apply(icis);
 		
 		out.getT1().subscribe();
-		List<List<Tuple3<IndicatorEvent, TestDataInputType, IndicatorDetails>>> alerts = out.getT2().collect(Collectors.toList()).block();
+		List<List<Tuple3<IndicatorEvent, TestDataInputType, IndicatorDetails>>> alerts = out.getT3().collect(Collectors.toList()).block();
 		assertThat(alerts.get(0).get(0).getT1().getAlert(), equalTo("Value moved below set threshold 30.0"));
 		
 	}

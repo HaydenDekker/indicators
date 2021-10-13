@@ -10,6 +10,7 @@ import com.hdekker.indicators.indicator.components.ConfigManger;
 import com.hdekker.indicators.indicator.components.SampleSubscriber;
 import com.hdekker.indicators.indicator.components.SampleSubscriber.IndicatorDetails;
 import com.hdekker.indicators.indicator.fn.Indicator;
+import com.hdekker.indicators.indicator.state.IndicatorTestResultEvent;
 import com.hdekker.indicators.indicator.state.State;
 import com.hdekker.indicators.indicator.state.impl.IndicatorConfigState;
 import com.hdekker.indicators.indicator.state.impl.MutableIndicatorStateManager;
@@ -119,7 +120,7 @@ public class IndicatorComponent {
 	 */
 	public interface IndicatorComponentBuilder<K extends IndicatorSampleData> extends 
 	Function<IndicatorComponentInputSpec<K>, 
-	Tuple2<Flux<Tuple2<IndicatorConfigState, MutableIndicatorStateManager>>, Flux<List<Tuple3<IndicatorEvent, K, IndicatorDetails>>>>> {}
+	Tuple3<Flux<Tuple2<IndicatorConfigState, MutableIndicatorStateManager>>, Flux<IndicatorTestResultEvent>, Flux<List<Tuple3<IndicatorEvent, K, IndicatorDetails>>>>> {}
 	
 	
 	public static <K extends IndicatorSampleData> 
@@ -161,13 +162,14 @@ public class IndicatorComponent {
 					);
 			
 			SampleSubscriber<K> samp = SampleSubscriber.builder();
-			Flux<List<Tuple3<IndicatorEvent, K, IndicatorDetails>>> outSamp = samp.withInputs(
+			Tuple2<Flux<IndicatorTestResultEvent>, Flux<List<Tuple3<IndicatorEvent, K, IndicatorDetails>>>> outSamp = 
+					samp.withInputs(
 							Tuples.of(configSpec.getDataFlux(), 
 							(primaryKey) -> Optional.ofNullable(confState.getState().getState().get(primaryKey)),
 							() -> intState.getState()
 			));
 			
-			return Tuples.of(outConf, outSamp);
+			return Tuples.of(outConf, outSamp.getT1(), outSamp.getT2());
 		}; 
 		
 	}

@@ -24,6 +24,7 @@ import com.hdekker.indicators.indicator.components.SampleSubscriber.IndicatorDet
 import com.hdekker.indicators.indicator.fn.Indicator;
 import com.hdekker.indicators.indicator.fn.Indicator.IndicatorTestResult;
 import com.hdekker.indicators.indicator.fn.Indicator.IndicatorTestSpec;
+import com.hdekker.indicators.indicator.state.IndicatorTestResultEvent;
 import com.hdekker.indicators.indicator.state.impl.ConfigStateReader;
 import com.hdekker.indicators.indicator.state.impl.IndicatorConfigState;
 import com.hdekker.indicators.indicator.state.impl.IndicatorAttributeState;
@@ -84,10 +85,10 @@ public class IndicatorSampleSubscriberTest {
 		ConfigStateReader r = (primaryKey) -> Optional.ofNullable(configState.getState().get(primaryKey));
 		Supplier<MutableIndicatorStateManager> isr = () -> indicatorStateMan;
 		
-		Flux<List<Tuple3<IndicatorEvent, TestDataInputType, IndicatorDetails>>> fluxOut = SampleSubscriber.<TestDataInputType> builder().withInputs(Tuples.of(inputFlux, r, isr));
+		Tuple2<Flux<IndicatorTestResultEvent>, Flux<List<Tuple3<IndicatorEvent, TestDataInputType, IndicatorDetails>>>> fluxOut = SampleSubscriber.<TestDataInputType> builder().withInputs(Tuples.of(inputFlux, r, isr));
 		
 		// only expect event if present so needs at least two inputs
-		List<List<Tuple3<IndicatorEvent, TestDataInputType, IndicatorDetails>>> output = fluxOut.collect(Collectors.toList()).block();
+		List<List<Tuple3<IndicatorEvent, TestDataInputType, IndicatorDetails>>> output = fluxOut.getT2().collect(Collectors.toList()).block();
 		assertThat(output, hasSize(2));
 		
 	}
@@ -106,12 +107,12 @@ public class IndicatorSampleSubscriberTest {
 		ConfigStateReader r = (primaryKey) -> Optional.ofNullable(configState.getState().get(primaryKey));
 		Supplier<MutableIndicatorStateManager> isr = () -> indicatorStateMan;
 		
-		Flux<List<Tuple3<IndicatorEvent, TestDataInputType, IndicatorDetails>>> 
+		Tuple2<Flux<IndicatorTestResultEvent>,Flux<List<Tuple3<IndicatorEvent, TestDataInputType, IndicatorDetails>>>>
 			fluxOut = SampleSubscriber.<TestDataInputType> builder()
 						.withInputs(Tuples.of(inputFlux, r, isr));
 		
 		// only expect event if present so needs at least two inputs
-		List<List<Tuple3<IndicatorEvent, TestDataInputType, IndicatorDetails>>> output = fluxOut.collect(Collectors.toList()).block();
+		List<List<Tuple3<IndicatorEvent, TestDataInputType, IndicatorDetails>>> output = fluxOut.getT2().collect(Collectors.toList()).block();
 		assertThat(output, hasSize(1));
 		
 	}
