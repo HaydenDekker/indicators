@@ -10,6 +10,8 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.slf4j.LoggerFactory;
+
 import com.hdekker.indicators.indicator.IndicatorFnDescriptor;
 import com.hdekker.indicators.indicator.IndicatorFnDescriptor.IndicatorFNType;
 import com.hdekker.indicators.indicator.alert.IndicatorEvent;
@@ -123,6 +125,10 @@ public class IndicatorFactory {
 		// Set Indicator Factory State TODO don't set state here
 		Map<String, Indicator>stateMap = new HashMap<>(configuredIndicators.getState());
 		stateMap.put(spec.getIndicatorName(), ind);
+		
+		LoggerFactory.getLogger(IndicatorFactory.class)
+			.debug("Indicator added to factory with name " + spec.getIndicatorName());
+		
 		configuredIndicators = new ConfiguredIndicators(stateMap);
 		
 		return spec.getIndicatorName();

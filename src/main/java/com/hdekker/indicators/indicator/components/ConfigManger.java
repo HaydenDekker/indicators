@@ -18,6 +18,8 @@ import java.util.stream.Collectors;
 
 import javax.swing.plaf.ListUI;
 
+import org.slf4j.LoggerFactory;
+
 import com.hdekker.indicators.indicator.IndicatorConfigurationSpec;
 import com.hdekker.indicators.indicator.IndicatorFactory;
 import com.hdekker.indicators.indicator.IndicatorSubscription;
@@ -112,9 +114,13 @@ public interface ConfigManger {
 				// listen for subscriptions
 				return config.getSubscriptionFlux().map(l->{
 					
+					// TODO this function is not working
 					Map<String, Map<String, List<String>>> items = convertForFiltering.apply(l);
-					List<Tuple3<String, String, String>> newItems = flattenState.apply(items);
+					List<Tuple3<String, String, String>> newItems = findNewConfig.apply(items, config.getConfigurationStateSupplier().get().getState());
 					List<Tuple3<String, String, String>> existingItems = findExistingConfig.apply(items, config.getConfigurationStateSupplier().get().getState());
+					
+					LoggerFactory.getLogger(ConfigManger.class)
+						.debug("Config updated. New items: " + newItems.size() + ". Existing items " + existingItems.size() + ".");
 					
 					Map<String, IndicatorTestResult> 
 						newMap = MutableIndicatorStateManager.
@@ -268,6 +274,7 @@ public interface ConfigManger {
 			return Optional.ofNullable(map.get(entry.getT1()))
 							.map(m-> m.get(entry.getT2()))
 							.map(l-> l.contains(entry.getT3()))
+							.filter(b->b.equals(true))
 							.isPresent();
 	};
 	
@@ -289,5 +296,24 @@ public interface ConfigManger {
 				.collect(Collectors.toList());
 			
 		};
+		
+		/**
+		 * Return all items in the new list
+		 * that are not in the preivous list.
+		 * 
+		 */
+		BiFunction<
+					Map<String, Map<String, List<String>>>, 
+					Map<String, Map<String, List<String>>>, 
+					List<Tuple3<String, String, String>>> findNewConfig
+			
+			= (current, previous) -> {
+				
+				return flattenState.apply(current)
+					.stream()
+					.filter(entry-> !entryExists.test(previous, entry))
+					.collect(Collectors.toList());
+				
+			};
 	
 }

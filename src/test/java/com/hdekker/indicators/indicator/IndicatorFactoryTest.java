@@ -190,6 +190,9 @@ public class IndicatorFactoryTest {
 		assertThat(result.getSpec().getIndicatorAttributeState().getState().get("1-RSI-" + RSI.aveGain), notNullValue());
 		assertThat(result.getSpec().getIndicatorAttributeState().getState().get("2-Drops below threshold-" + Threshold.PREV_STATE), notNullValue());
 		
+		Indicator indicator2 = IndicatorFactory.getIndicator("coin down");
+		assertThat(indicator2, notNullValue());
+		
 		
 	}
 	

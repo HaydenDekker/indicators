@@ -2,6 +2,7 @@ package com.hdekker.indicators.indicator;
 
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -90,6 +91,18 @@ public class IndicatorConfigManagerTest {
 		return (in) -> in.stream().map(conv).collect(Collectors.toList());
 	}
 	
+	@Test
+	public void uEntryExists() {
+		
+		Map<String, Map<String, List<String>>> map = Map.of("one", Map.of("two", List.of("three")), "four", Map.of("five", List.of("six")));
+		
+		BiPredicate<Map<String, Map<String, List<String>>>, Tuple3<String, String, String>> fn = ConfigManger.entryExists;
+		
+		assertThat(fn.test(map, Tuples.of("seven", "eight", "nine")), equalTo(false));
+		assertThat(fn.test(map, Tuples.of("one", "two", "nine")), equalTo(false));
+		
+	}
+	
 	// units
 	@Test
 	public void uFindsExistingConfig() {
@@ -106,8 +119,29 @@ public class IndicatorConfigManagerTest {
 	
 		assertThat(existingConfig.size(), equalTo(1));
 		assertThat(existingConfig.get(0).getT1(), equalTo("asset-1"));
-	
+		
+		
 	}
+	
+	@Test
+	public void uFindsNewConfig() {
+		
+		
+		// don't need reactive stage
+		List<IndicatorSubscription> initialSet = IndicatorTestDataUtil.getSingleTestConfiguration();
+		List<IndicatorSubscription> latestUpdateSet = IndicatorTestDataUtil.getMultiTestConfiguration();
+		
+		IndicatorConfigState ics = new IndicatorConfigState(ConfigManger.convertForFiltering.apply(initialSet));
+
+		// new conf comes in
+		List<Tuple3<String, String, String>> newConfig = ConfigManger.findNewConfig.apply(ConfigManger.convertForFiltering.apply(latestUpdateSet), ics.getState());		
+	
+		assertThat(newConfig.size(), equalTo(2));
+		assertThat(newConfig.get(0).getT1(), equalTo("asset-2"));
+		
+		
+	}
+	
 	
 	@Test
 	public void uBuildsNewState() {
@@ -152,6 +186,33 @@ public class IndicatorConfigManagerTest {
 		
 		assertThat(manager.getState().get("asset-1" + "-" + "PT1S" + "-" + "RSI-14-ThreshBelow30"), notNullValue());
 		
+	}
+	
+	/**
+	 * Config needs to create new maps in order to free previous
+	 * states.
+	 * 
+	 */
+	@Test
+	public void uCreatesNewIndicatorStateForMultipleIndicatorsOfSameType() {
+		
+		List<IndicatorSubscription> initial = IndicatorTestDataUtil.getMultiTestConfWithMultiIndicators();
+		
+		List<Tuple3<String, String, String>> newItems = 
+															ConfigManger.convertForFiltering
+															.andThen(ConfigManger.flattenState)
+															.apply(initial);
+		
+		Map<String, IndicatorTestResult> map = MutableIndicatorStateManager.
+			<Tuple3<String, String, String>,IndicatorTestResult> 
+			getInternalStateMap()
+			.apply(MutableIndicatorStateManager.withNewInternalState)
+			.apply(newItems);
+		
+		MutableIndicatorStateManager manager = new MutableIndicatorStateManager(map);
+		
+		assertThat(manager.getState().get("asset-2" + "-" + "PT2S" + "-" + "RSI-14-ThreshBelow30"), notNullValue());
+		assertThat(manager.getState().get("asset-2-PT2S-RSI14-ThreshAbove60"), notNullValue());
 	}
 
 }

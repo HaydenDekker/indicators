@@ -39,8 +39,9 @@ public class IndicatorTestDataUtil {
 			
 			TestConfiguration one = new TestConfiguration("asset-1", Duration.ofSeconds(1), RSI14_THRESH_BELOW30);
 			TestConfiguration two = new TestConfiguration("asset-2", Duration.ofSeconds(1), RSI14_THRESH_BELOW30);
+			TestConfiguration three = new TestConfiguration("asset-2", Duration.ofSeconds(2), RSI14_THRESH_BELOW30);
 			
-			return Arrays.asList(one, two);
+			return Arrays.asList(one, two, three);
 		}
 		
 		public static List<IndicatorSubscription> getMultiTestConfWithMultiIndicators(){
@@ -50,7 +51,7 @@ public class IndicatorTestDataUtil {
 			IndicatorSubscription three = new IndicatorSubscription("asset-2", Duration.ofSeconds(2).toString(), RSI14_THRESH_BELOW30);
 			IndicatorSubscription four = new IndicatorSubscription("asset-2", Duration.ofSeconds(2).toString(), "RSI14-ThreshAbove60");
 			
-			return Arrays.asList(one, two, three);
+			return Arrays.asList(one, two, three, four);
 		}
 		
 		public static Flux<List<IndicatorSubscription>> confFluxSingleUpdate(){
@@ -107,7 +108,14 @@ public class IndicatorTestDataUtil {
 					)
 				);
 				
-				sink.next(Arrays.asList(spec));
+				IndicatorConfigurationSpec spec2 = new IndicatorConfigurationSpec("coin down", 
+						List.of(	
+							new IndicatorFnConfigSpec("1-RSI", Map.of("steps", 14.0), IndicatorFNType.Transform, IndicatorFnIdentity.TRANSFORM_RSI),
+							new IndicatorFnConfigSpec("2-Rises above threshold", Map.of("value", 60.0), IndicatorFNType.Alert, IndicatorFnIdentity.ALERT_THRESHOLD_ABOVE)
+						)
+					);
+				
+				sink.next(Arrays.asList(spec, spec2));
 				
 			});
 		}
